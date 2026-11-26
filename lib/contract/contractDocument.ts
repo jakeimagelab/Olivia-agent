@@ -45,6 +45,7 @@ export const CONTRACT_TERM_TEXT_LIMIT = 160;
 
 export type ContractHtmlOptions = {
   baseUrl?: string;
+  customerSignaturePlaceholders?: boolean;
 };
 
 export const CONTRACT_BRAND_CONFIG: Record<ContractBrand, {
@@ -105,6 +106,27 @@ const fmt = (value: number) => (value || 0).toLocaleString("ko-KR");
 const escapeHtml = (value: string | null | undefined) => String(value ?? "")
   .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
   .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+
+const CUSTOMER_SIGNED_DATE = "<!--olivia-customer-signed-date-->";
+const CUSTOMER_SIGNATURE = "<!--olivia-customer-signature-->";
+const CUSTOMER_SIGNATURE_RECORD = "<!--olivia-contract-signature-record-->";
+
+export function applyCustomerContractSignature(
+  html: string,
+  signature: { name: string; signedAt: string; image: string; originalPdfSha256: string },
+) {
+  if (![CUSTOMER_SIGNED_DATE, CUSTOMER_SIGNATURE, CUSTOMER_SIGNATURE_RECORD].every((marker) => html.includes(marker))) {
+    throw new Error("발송한 계약서의 서명란을 찾지 못했습니다.");
+  }
+  const signedAt = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "medium", hour12: false,
+  }).format(new Date(signature.signedAt));
+  const name = escapeHtml(signature.name);
+  return html
+    .replace(CUSTOMER_SIGNED_DATE, () => `${signedAt} (KST)`)
+    .replace(CUSTOMER_SIGNATURE, () => `<img class="signature-image" src="${escapeHtml(signature.image)}" alt="고객 전자서명"><span>${name}</span>`)
+    .replace(CUSTOMER_SIGNATURE_RECORD, () => `<div class="effect-box" style="break-inside:avoid;text-align:left;overflow-wrap:anywhere"><strong>전자서명 기록</strong><br>서명자 ${name} · ${signedAt} (KST)<br>발송 계약서 SHA-256 ${escapeHtml(signature.originalPdfSha256)}</div>`);
+}
 
 export function defaultContractClauses(brand: ContractBrand): Record<ContractClauseKey, string> {
   const config = CONTRACT_BRAND_CONFIG[brand];
@@ -224,7 +246,7 @@ export function buildContractHtml(
 ${clauseSections.scope}<div class="section"><h3><span class="art">제2조</span>촬영 항목 및 계약 금액</h3><div class="quote-list">${itemCards}</div><div class="amount-panel"><p class="amount-note">상기 금액은 견적서 기준으로 산정되며, 촬영 범위 또는 납품 범위가 변경되는 경우 상호 협의에 따라 조정될 수 있습니다.</p><div class="amt-box"><div class="amt-row"><span class="l">공급가액</span><span>${fmt(q.supplyAmount)}원</span></div>${q.discountAmount > 0 ? `<div class="amt-row"><span class="l">할인금액</span><span style="color:#E85D2C;">-${fmt(q.discountAmount)}원</span></div>` : ""}<div class="amt-row"><span class="l">${taxLabel}</span><span>${fmt(q.vat)}원</span></div><div class="amt-total"><span>최종 계약금액</span><span>${fmt(q.totalAmount)}원</span></div></div></div></div>
 <div class="section"><h3><span class="art">제3조</span>결제 조건</h3><div class="clause">${escapeHtml(payment)}</div><div class="pay-boxes"><div class="pay-box"><div class="pt">계약금 (선금 ${effectiveDepositRate}%)</div><div class="pa">${fmt(effectiveDeposit)}원</div><div class="ps">계약 체결 시 납부</div></div><div class="pay-box"><div class="pt">잔금 (${100 - effectiveDepositRate}%)</div><div class="pa">${fmt(effectiveBalance)}원</div><div class="ps">${escapeHtml(q.paymentTerms || "마지막 촬영 직후")} 납부</div></div></div></div></div>
 <div class="contract-page">${clauseSections.deliverables}${section("제5조", "촬영 일정 및 납품 기한", schedule)}${clauseSections.copyright}${clauseSections.revisions}${clauseSections.confidentiality}</div>
-<div class="contract-page final-page">${clauseSections.disputes}${section("제10조", "특약사항", special)}<div class="final-spacer"></div><div class="effect-box"><span class="effect-line">위 계약의 성립을 증명하기 위하여 본 계약서를 2부 작성하고, 각 1부씩 보관합니다.</span><br><strong>${today}</strong></div><div class="sign-area"><div class="sign-box"><h4>${cfg.clientPartyTitle}</h4><div class="sl"><span class="sk">${cfg.entityLabel}</span><span class="sv">${escapeHtml(q.hospitalName || "")}</span></div><div class="sl"><span class="sk">사업자번호</span><span class="sv">${escapeHtml(q.businessNumber || "")}</span></div><div class="sl"><span class="sk">${cfg.directorLabel}</span><span class="sv">${escapeHtml(q.contactName || "")}</span></div><div class="sl"><span class="sk">서명일</span><span class="sv"></span></div><div class="sl"><span class="sk">서명</span><span class="sv"></span></div><div class="stamp">직인 / 서명</div></div><div class="sign-box"><h4>${cfg.companyDisplayName}</h4><div class="sl"><span class="sk">상호</span><span class="sv">${cfg.companyDisplayName}</span></div><div class="sl"><span class="sk">사업자번호</span><span class="sv">${DOCUMENT_SUPPLIER.businessNumber}</span></div><div class="sl"><span class="sk">대표자</span><span class="sv">${DOCUMENT_SUPPLIER.representative}</span></div><div class="sl"><span class="sk">서명일</span><span class="sv">${today}</span></div><div class="sl"><span class="sk">서명</span><span class="sv">${signatureHtml}</span></div><div class="stamp">직인 / 서명</div></div></div><div class="footer">${cfg.footerTagline}<br>본 계약서는 양 당사자가 서명한 시점부터 법적 효력이 발생합니다.</div></div></body></html>`;
+<div class="contract-page final-page">${clauseSections.disputes}${section("제10조", "특약사항", special)}<div class="final-spacer"></div><div class="effect-box"><span class="effect-line">위 계약의 성립을 증명하기 위하여 본 계약서를 2부 작성하고, 각 1부씩 보관합니다.</span><br><strong>${today}</strong></div><div class="sign-area"><div class="sign-box"><h4>${cfg.clientPartyTitle}</h4><div class="sl"><span class="sk">${cfg.entityLabel}</span><span class="sv">${escapeHtml(q.hospitalName || "")}</span></div><div class="sl"><span class="sk">사업자번호</span><span class="sv">${escapeHtml(q.businessNumber || "")}</span></div><div class="sl"><span class="sk">${cfg.directorLabel}</span><span class="sv">${escapeHtml(q.contactName || "")}</span></div><div class="sl"><span class="sk">서명일</span><span class="sv">${options.customerSignaturePlaceholders ? CUSTOMER_SIGNED_DATE : ""}</span></div><div class="sl"><span class="sk">서명</span><span class="sv">${options.customerSignaturePlaceholders ? CUSTOMER_SIGNATURE : ""}</span></div><div class="stamp">직인 / 서명</div></div><div class="sign-box"><h4>${cfg.companyDisplayName}</h4><div class="sl"><span class="sk">상호</span><span class="sv">${cfg.companyDisplayName}</span></div><div class="sl"><span class="sk">사업자번호</span><span class="sv">${DOCUMENT_SUPPLIER.businessNumber}</span></div><div class="sl"><span class="sk">대표자</span><span class="sv">${DOCUMENT_SUPPLIER.representative}</span></div><div class="sl"><span class="sk">서명일</span><span class="sv">${today}</span></div><div class="sl"><span class="sk">서명</span><span class="sv">${signatureHtml}</span></div><div class="stamp">직인 / 서명</div></div></div>${options.customerSignaturePlaceholders ? CUSTOMER_SIGNATURE_RECORD : ""}<div class="footer">${cfg.footerTagline}<br>본 계약서는 양 당사자가 서명한 시점부터 법적 효력이 발생합니다.</div></div></body></html>`;
 }
 
 export function buildContractHtmlFromRow(

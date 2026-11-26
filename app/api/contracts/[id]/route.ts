@@ -4,6 +4,7 @@ import { resolveClientId } from "@/lib/clientLookup";
 import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
 import { contractContentUpdate } from "@/lib/contract/contractEdits";
 import { getContractEditLock } from "@/lib/contract/contractEditLock";
+import { loadSignedMailContract } from "@/lib/document-mail/repository";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,8 +17,14 @@ export async function GET(_req: NextRequest, ctx: ContractRouteContext) {
   const { data, error } = await supabase.from("contracts").select("*").eq("id", id).single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 404 });
   try {
-    const editLock = await getContractEditLock(supabase, data);
-    return NextResponse.json({ ok: true, data, editLock });
+    const [editLock, signed] = await Promise.all([
+      getContractEditLock(supabase, data),
+      loadSignedMailContract(supabase, id),
+    ]);
+    return NextResponse.json({
+      ok: true, data, editLock,
+      customerSignature: signed ? { signedAt: signed.signed_at, signerName: signed.signer_name } : null,
+    });
   } catch (error) {
     console.error("[ContractEdit] 계약 확인 상태 조회 실패", error);
     return NextResponse.json({ ok: false, error: "계약서의 확인 상태를 불러오지 못했습니다." }, { status: 500 });

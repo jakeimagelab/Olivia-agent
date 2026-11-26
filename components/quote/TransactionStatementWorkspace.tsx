@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Download, FileText, Mail, Paperclip, PenLine, Plus, RefreshCcw } from "lucide-react";
 import Modal from "@/components/ui/Modal";
+import DocumentMailPanel from "@/components/document-mail/DocumentMailPanel";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import {
   createQuoteStatement, loadStatementPdf, loadStatementWorkspace, openQuoteStatement, statementRequest,
@@ -76,6 +77,7 @@ export default function TransactionStatementWorkspace({ opening, quoteId, onBack
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [mailMode, setMailMode] = useState<StatementReceiptMode | null>(null);
+  const [mailStatementId, setMailStatementId] = useState<string | null>(null);
   const selectedId = statement?.id;
   const endpoint = selectedId ? transactionStatementPath(selectedId) : "";
   const editable = statement?.status === "draft" && !statement.sending;
@@ -230,8 +232,12 @@ export default function TransactionStatementWorkspace({ opening, quoteId, onBack
           <h2><FileText size={17} /> {isSigned ? "서명본 PDF" : "PDF 미리보기"}</h2>
           <div className={styles.actions}>
             <button className={styles.secondary} type="button" onClick={download} disabled={busy}><Download size={16} /> {isSigned ? "서명본 다운로드" : "PDF 다운로드"}</button>
+            <button className={styles.secondary} type="button" disabled={busy} onClick={() => void perform(async () => {
+              const saved = await saveIfDirty();
+              setMailStatementId(saved.id);
+            })}><Mail size={16} /> 메일 보내기</button>
             {editable ? <>
-              <button className={styles.secondary} type="button" onClick={() => startMail("confirm")} disabled={busy}><Mail size={16} /> PDF 보내기</button>
+              <button className={styles.secondary} type="button" onClick={() => startMail("confirm")} disabled={busy}>수신확인 요청</button>
               <button className={styles.secondary} type="button" onClick={() => startMail("sign")} disabled={busy}><PenLine size={16} /> 서명 요청</button>
             </> : null}
           </div>
@@ -259,5 +265,6 @@ export default function TransactionStatementWorkspace({ opening, quoteId, onBack
           setNotice(mode === "sign" ? "서명 요청 메일을 보냈습니다." : "PDF와 수신확인 링크를 보냈습니다.");
         }} />
     </Modal> : null}
+    {mailStatementId ? <DocumentMailPanel anchor={{ kind: "statement", id: mailStatementId }} onClose={() => setMailStatementId(null)} /> : null}
   </main>;
 }

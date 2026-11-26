@@ -2,6 +2,7 @@
 import type { PointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { Mail } from "lucide-react";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
@@ -25,6 +26,7 @@ import {
 } from "@/lib/contract/contractDocument";
 import ContractDocumentPreview from "./ContractDocumentPreview";
 import ContractTermsEditor from "./ContractTermsEditor";
+import DocumentMailPanel from "@/components/document-mail/DocumentMailPanel";
 import styles from "./ContractBuilder.module.css";
 
 const THEME: Record<ContractBrand, {
@@ -92,6 +94,9 @@ export default function ContractBuilder({
   const [publishState, setPublishState] = useState<"idle" | "publishing" | "done" | "error">("idle");
   const [completeState, setCompleteState] = useState<"idle" | "completing" | "done" | "error">("idle");
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
+  const [mailContractId, setMailContractId] = useState<string | null>(null);
+  const [openingMail, setOpeningMail] = useState(false);
+  const [customerSignature, setCustomerSignature] = useState<{ signerName: string; signedAt: string } | null>(null);
   const [brand, setBrand] = useState<ContractBrand>("photoclinic");
   const C = THEME[brand];
   const cfg = CONTRACT_BRAND_CONFIG[brand];
@@ -224,6 +229,7 @@ export default function ContractBuilder({
       setSourceQuoteRecordId(typeof contract.source_quote_id === "string" ? contract.source_quote_id : null);
       setSourceQuoteApproved(null);
       setLoadedEditLock(typeof payload.editLock === "string" ? payload.editLock : null);
+      setCustomerSignature(payload.customerSignature ?? null);
       setBrand(/^(?:JKQ|JI)-/.test(loadedQuote.quoteNumber) ? "jakeimage" : "photoclinic");
       setQuote(loadedQuote);
       setSignatureDataUrl(signature);
@@ -276,9 +282,11 @@ export default function ContractBuilder({
       }
     };
     window.addEventListener("olivia-resource-refresh", onRefresh);
+    window.addEventListener("focus", onRefresh);
     return () => {
       controller.abort();
       window.removeEventListener("olivia-resource-refresh", onRefresh);
+      window.removeEventListener("focus", onRefresh);
     };
   }, [documentOnly, isModal, modalClientId, modalWorkflowRunId, resourceId, setOliviaCurrentDocument, sourceQuoteId]);
 
@@ -768,6 +776,17 @@ export default function ContractBuilder({
     return task;
   };
 
+  const openContractMail = async () => {
+    if (openingMail) return;
+    setOpeningMail(true);
+    try {
+      const id = await handleSave();
+      if (id) setMailContractId(id);
+    } finally {
+      setOpeningMail(false);
+    }
+  };
+
   useSaveShortcut(handleSave, !editLock);
 
   useEffect(() => {
@@ -851,6 +870,9 @@ export default function ContractBuilder({
               }}>
               {saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : saveState === "error" ? "✕ 저장 실패" : "저장 (⌘S)"}
             </button>
+            <button type="button" className="pc-btn pc-btn--secondary pc-btn--sm" onClick={() => void openContractMail()} disabled={openingMail}>
+              <Mail size={15} /> {openingMail ? "메일 준비 중…" : "메일 보내기"}
+            </button>
             <div style={{ position: "relative" }}>
               <button onClick={() => setShowDownloadMenu((v) => !v)} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
                 {pdfGenerating ? "PDF 생성 중..." : "다운로드 ▾"}
@@ -920,6 +942,11 @@ export default function ContractBuilder({
         <div className={styles.sidePanel}>
           <ContractTermsEditor brand={brand} quote={quote} defaultDepositRate={effectiveDepositRate}
             editLock={editLock} onChange={changeQuote} />
+          {customerSignature && <section className="pc-card pc-card--padded" aria-label="고객 서명 결과">
+            <strong>고객 서명 완료</strong>
+            <p>{customerSignature.signerName} · {new Date(customerSignature.signedAt).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</p>
+            <button type="button" className="pc-btn pc-btn--secondary pc-btn--sm" disabled={pdfGenerating} onClick={() => void downloadPdf()}>서명본 PDF 다운로드</button>
+          </section>}
 
           {/* 견적 요약 */}
           <div style={{ background: C.teal, borderRadius: 14, padding: "16px 18px", color: "#fff" }}>
@@ -1042,8 +1069,7 @@ export default function ContractBuilder({
               <div style={{ fontSize: 12, color: C.teal, fontWeight: 700 }}>{mailingNotice}</div>
             ) : (
               <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.7 }}>
-                계약서가 올리비아 메일링함에 자동 저장됩니다.<br/>
-                실제 발송은 <a href="/mailing" style={{ color: C.orange, fontWeight: 700 }}>통합 메일링</a>에서 진행하세요.
+                메일 보내기에서 연결된 문서를 선택하고 고객에게 확인 링크를 전달할 수 있습니다.
               </div>
             )}
           </div>
@@ -1078,6 +1104,7 @@ export default function ContractBuilder({
             actions={[
               { key: "save", label: saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : "저장 (⌘S)", onClick: () => void handleSave(), disabled: saveState === "saving" || !!editLock },
               { key: "download", label: pdfGenerating ? "PDF 생성 중..." : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), disabled: pdfGenerating },
+              { key: "mail", label: openingMail ? "메일 준비 중…" : "메일 보내기", onClick: () => void openContractMail(), disabled: openingMail, icon: <Mail size={14} /> },
               { key: "complete", label: contractCoreCompleted ? "✓ 최종완료됨" : completeState === "completing" ? "완료 처리 중..." : "최종완료", onClick: () => void completeContractStep(), disabled: completeState === "completing" || contractCoreCompleted },
               { key: "publish", label: publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨" : "포털 공개", onClick: () => void publishToPortal(), disabled: publishState === "publishing", variant: "primary" },
             ]}
@@ -1085,6 +1112,7 @@ export default function ContractBuilder({
         </div>
       ) : null}
     </div>
+    {mailContractId ? <DocumentMailPanel anchor={{ kind: "contract", id: mailContractId }} onClose={() => setMailContractId(null)} /> : null}
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
         <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24, position: "relative" }}>

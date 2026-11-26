@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CONTRACT_BRAND_CONFIG } from "@/lib/contract/contractDocument";
 import { renderContractPdfBuffer } from "@/lib/contract/renderContractPdf";
+import { DOCUMENT_MAIL_BUCKET, loadSignedMailContract } from "@/lib/document-mail/repository";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,17 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   }
 
   try {
+    const signed = await loadSignedMailContract(db, id);
+    if (signed) {
+      const { data: file, error: storedError } = await db.storage.from(DOCUMENT_MAIL_BUCKET).download(signed.signed_pdf_path);
+      if (storedError || !file) throw new Error("보관한 계약서 서명본을 읽을 수 없습니다.");
+      const name = encodeURIComponent(`계약서_${safeFilePart(String(contract.quote_number ?? ""), "고객")}_서명본.pdf`);
+      return new Response(file.stream(), { headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="signed-contract.pdf"; filename*=UTF-8''${name}`,
+        "Cache-Control": "private, no-store",
+      } });
+    }
     const result = await renderContractPdfBuffer(contract as Record<string, unknown>, {
       baseUrl: new URL(request.url).origin,
     });

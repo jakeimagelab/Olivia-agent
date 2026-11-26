@@ -5,6 +5,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { TransactionStatementButton } from "./TransactionStatementButton";
+import DocumentMailPanel from "@/components/document-mail/DocumentMailPanel";
 import type { StatementWorkspaceOpening } from "@/lib/quote/transactionStatementClient";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
@@ -59,7 +60,8 @@ import {
   X,
   ZoomIn,
   ZoomOut,
-  FileText
+  FileText,
+  Mail,
 } from "lucide-react";
 
 const PREVIEW_PAGE_WIDTH = 1123;
@@ -422,6 +424,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   // "이미 열려 있는" 경우는 olivia-quote-preview 이벤트 리스너가 대신 처리한다(아래 useEffect).
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(() => !!startInPreview);
   const [statementWorkspace, setStatementWorkspace] = useState<{ opening: Promise<StatementWorkspaceOpening>; quoteId: string } | null>(null);
+  const [mailQuoteId, setMailQuoteId] = useState<string | null>(null);
+  const [openingMail, setOpeningMail] = useState(false);
   const quoteDocumentId = editorSession.quoteId ?? undefined;
   const activeStatement = statementWorkspace?.quoteId === quoteDocumentId ? statementWorkspace : null;
   const editorClientId = editorSession.clientId ?? undefined;
@@ -1377,6 +1381,17 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   };
 
   const [manualSaving, setManualSaving] = useState(false);
+  const openQuoteMail = async () => {
+    if (openingMail) return;
+    setOpeningMail(true);
+    try {
+      const saved = await saveRecentQuote(buildContractQuoteData());
+      if (saved?.id) setMailQuoteId(saved.id);
+    } finally {
+      setOpeningMail(false);
+    }
+  };
+
   const handleManualSave = async () => {
     setManualSaving(true);
     setRecentQuoteMessage("");
@@ -2965,7 +2980,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
               style={{ background: "var(--quote-accent)" }}
             >
               <FileText size={18} />
-              {openingContract ? "계약서 준비 중…" : "고객 승인 후 계약서 생성"}
+              {openingContract ? "계약서 준비 중…" : "계약서 작성"}
             </button> : null}
             {!documentOnly ? <button className="secondary-button" type="button" onClick={resetToNewQuote}>
               <RefreshCcw size={18} />
@@ -3000,13 +3015,14 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           {showFullscreenPreview && typeof document !== "undefined"
             ? createPortal(quotePreviewShellNode, document.body)
             : quotePreviewShellNode}
-          {quoteDocumentId ? (
-            <div className="mt-3 flex justify-end">
-              <TransactionStatementButton key={quoteDocumentId} quoteId={quoteDocumentId}
+          <div className="mt-3 flex flex-wrap justify-end gap-2">
+            {!isDesktopWindow && <button className="secondary-button" type="button" disabled={openingMail} onClick={() => void openQuoteMail()}>
+              <Mail size={16} /> {openingMail ? "메일 준비 중…" : "메일 보내기"}
+            </button>}
+            {quoteDocumentId && <TransactionStatementButton key={quoteDocumentId} quoteId={quoteDocumentId}
                 onPrepare={() => { void loadTransactionStatementWorkspace().catch(() => undefined); }}
-                onOpen={(opening) => { setShowFullscreenPreview(false); setStatementWorkspace({ opening, quoteId: quoteDocumentId }); }} />
-            </div>
-          ) : null}
+                onOpen={(opening) => { setShowFullscreenPreview(false); setStatementWorkspace({ opening, quoteId: quoteDocumentId }); }} />}
+          </div>
         </aside>
       </section>
       {/* OLIVIA OS 1차 작업 지시서 2/3단계 — 창 하단 고정 액션 바. AppWindow의 .content가
@@ -3048,13 +3064,15 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
               ...(!documentOnly ? [{ key: "reset", label: "초기화", onClick: resetToNewQuote, icon: <RefreshCcw size={14} /> }] : []),
               { key: "save", label: manualSaving ? "저장 중…" : "임시저장 (⌘S)", onClick: handleManualSave, disabled: manualSaving, icon: <Save size={14} /> },
               { key: "download", label: isGenerating ? "PDF 생성 중" : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), icon: <Download size={14} /> },
+              { key: "mail", label: openingMail ? "메일 준비 중…" : "메일 보내기", onClick: () => void openQuoteMail(), disabled: openingMail, icon: <Mail size={14} /> },
               { key: "complete", label: completingQuote ? "최종완료 처리 중…" : "최종완료", onClick: handleFinalComplete, disabled: completingQuote, icon: <CheckCircle2 size={14} /> },
-              ...(!documentOnly ? [{ key: "contract", label: openingContract ? "계약서 준비 중…" : "고객 승인 후 계약서 생성", onClick: goToContract, disabled: openingContract, variant: "primary" as const, icon: <FileText size={14} /> }] : []),
+              ...(!documentOnly ? [{ key: "contract", label: openingContract ? "계약서 준비 중…" : "계약서 작성", onClick: goToContract, disabled: openingContract, variant: "primary" as const, icon: <FileText size={14} /> }] : []),
             ]}
           />
         </div>
       )}
     </main>
+    {mailQuoteId ? <DocumentMailPanel anchor={{ kind: "quote", id: mailQuoteId }} onClose={() => setMailQuoteId(null)} /> : null}
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
         <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24, position: "relative" }}>
