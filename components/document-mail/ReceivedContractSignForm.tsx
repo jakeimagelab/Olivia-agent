@@ -44,7 +44,7 @@ export default function ReceivedContractSignForm({ endpoint, contractVersion }: 
       <p className={styles.notice} role="status">{receipt.signerName} 님의 서명을 저장했습니다.</p>
       <div className={styles.actions}><a className={styles.button} href={`${endpoint}?kind=contract&download=1`}>서명본 PDF 다운로드</a></div>
     </div> : <form className={styles.form} onSubmit={(event) => void submit(event)}>
-      <p className={styles.notice}>위의 계약서 PDF를 확인한 뒤 서명해 주세요.</p>
+      <p className={styles.notice}>계약서 내용을 확인하고 서명하면 서명본 PDF를 내려받을 수 있습니다.</p>
       <label className={styles.field}>서명자 이름<input name="name" maxLength={80} autoComplete="name" readOnly={waiting} required /></label>
       <label className={styles.check}><input type="checkbox" required checked={acknowledged} disabled={waiting} onChange={(event) => setAcknowledged(event.target.checked)} />
         <span>계약서 내용을 모두 확인했고, 위 내용에 동의하여 전자서명합니다.</span>

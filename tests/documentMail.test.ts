@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+import { GET as receivedDocument } from "@/app/api/client-portal/document-mail/[token]/route";
 import { applyCustomerContractSignature, buildContractHtmlFromRow } from "@/lib/contract/contractDocument";
 import {
   createDocumentMailToken, documentMailHash, loadReceivedDocuments, readDocumentMailProgress, receivedPdfFileName, shareDocumentScope,
@@ -7,6 +9,7 @@ import {
 import { previewDocumentMail, selectDocumentMailSources, sendDocumentMail } from "@/lib/document-mail/send";
 import { documentPortalHref, readDocumentPortalTarget } from "@/lib/document-mail/portal";
 import { defaultDocumentMailMessage, documentMailBody } from "@/lib/document-mail/email";
+import { formatDocumentMailSubject } from "@/lib/document-mail/shared";
 
 const quoteId = "41000000-0000-4000-8000-000000000001";
 const contractId = "41000000-0000-4000-8000-000000000002";
@@ -20,7 +23,9 @@ const mocks = vi.hoisted(() => ({
   contract: vi.fn(async () => Buffer.from("contract-pdf")),
   statement: vi.fn(async () => Buffer.from("statement-pdf")),
   withContext: vi.fn(async (render: (context: object) => Promise<unknown>) => render({})),
+  adminDb: vi.fn(),
 }));
+vi.mock("@/lib/supabase", () => ({ getSupabaseAdmin: mocks.adminDb }));
 vi.mock("@/lib/mail/gmailTransport", () => ({ gmailTransport: () => ({ user: "sender@example.test", client: { sendMail: mocks.mail } }) }));
 vi.mock("@/lib/quote/renderQuotePdf", () => ({ renderQuoteBuffer: mocks.quote }));
 vi.mock("@/lib/contract/renderContractPdf", () => ({ renderA4HtmlPdf: mocks.contract }));
@@ -44,6 +49,7 @@ function mailDb() {
   };
   const upload = vi.fn<(path: string, body: Buffer) => Promise<{ error: null }>>(async () => ({ error: null }));
   const remove = vi.fn<(paths: string[]) => Promise<{ error: null }>>(async () => ({ error: null }));
+  const createSignedUrl = vi.fn(async (path: string) => ({ data: { signedUrl: `https://storage.example.test/${path}` }, error: null }));
   const db = {
     from(table: string) {
       const filters: Array<(row: Record<string, unknown>) => boolean> = [];
@@ -58,6 +64,7 @@ function mailDb() {
         eq(key: string, value: unknown) { filters.push((row) => row[key] === value); return query; },
         not(key: string) { filters.push((row) => Boolean(row[key])); return query; },
         in(key: string, values: unknown[]) { filters.push((row) => values.includes(row[key])); return query; },
+        gt(key: string, value: string) { filters.push((row) => String(row[key]) > value); return query; },
         update(value: Record<string, unknown>) { patch = value; return query; },
         insert(value: Record<string, unknown>) { data[table].push(value); return Promise.resolve({ error: null }); },
         maybeSingle: async () => ({ data: execute()[0] ?? null, error: null }),
@@ -65,12 +72,54 @@ function mailDb() {
       };
       return query;
     },
-    storage: { from: () => ({ upload, remove }) },
+    storage: { from: () => ({ upload, remove, createSignedUrl }) },
   };
-  return { db: db as never, data, upload, remove };
+  return { db: db as never, data, upload, remove, createSignedUrl };
 }
 
 describe("document mail", () => {
+  it("uses only selected document names in quote, statement, contract order in the subject", () => {
+    const quoteAndContract = [{ kind: "contract" }, { kind: "quote" }] as const;
+    expect(formatDocumentMailSubject("포토클리닉", "가상안과", quoteAndContract))
+      .toBe("[포토클리닉입니다] 가상안과 견적서/계약서 송부 안내");
+    expect(formatDocumentMailSubject("포토클리닉", "가상안과", [...quoteAndContract, { kind: "statement" }]))
+      .toBe("[포토클리닉입니다] 가상안과 견적서/거래명세서/계약서 송부 안내");
+    expect(formatDocumentMailSubject("제이크이미지연구소", "테스트", [{ kind: "statement" }]))
+      .toBe("[제이크이미지연구소입니다] 테스트 거래명세서 송부 안내");
+  });
+
+  it("serves the contract terms before signature and issues a PDF link only to the signed copy", async () => {
+    const { db, data, createSignedUrl } = mailDb();
+    mocks.adminDb.mockReturnValue(db);
+    const token = createDocumentMailToken();
+    const delivery = {
+      token_hash: documentMailHash(token), state: "sent", expires_at: new Date(Date.now() + 60_000).toISOString(),
+      documents: [
+        { kind: "quote", number: quote.quote_number, title: "견적서", path: "quote.pdf" },
+        { kind: "contract", number: quote.quote_number, title: "계약서", path: "unsigned.pdf" },
+      ],
+      contract_html: "<html><head><base href=\"https://example.test/\"></head><body>서명할 계약 조항</body></html>",
+      signed_pdf_path: null, signed_at: null, signer_name: null,
+    };
+    data.document_mail_deliveries.push(delivery);
+    const get = (params: string) => receivedDocument(new NextRequest(`https://example.test/api/client-portal/document-mail/${token}?${params}`), { params: Promise.resolve({ token }) });
+    expect((await get("kind=contract")).status).toBe(403);
+    expect((await get("kind=contract&download=1")).status).toBe(403);
+    expect((await get("kind=contract&download=1&preview=1")).status).toBe(403);
+    const preview = await get("kind=contract&preview=1");
+    expect(preview.status).toBe(200);
+    expect(preview.headers.get("content-type")).toMatch(/^text\/html/);
+    expect(preview.headers.get("content-security-policy")).toContain("sandbox");
+    expect(await preview.text()).toContain("서명할 계약 조항");
+    expect(createSignedUrl).not.toHaveBeenCalled();
+    expect((await get("kind=quote&download=1")).headers.get("location")).toBe("https://storage.example.test/quote.pdf");
+    Object.assign(delivery, { signed_pdf_path: "signed.pdf", signed_at: version, signer_name: "가상 고객" });
+    const signed = await get("kind=contract&download=1");
+    expect(signed.status).toBe(303);
+    expect(signed.headers.get("location")).toBe("https://storage.example.test/signed.pdf");
+    expect(createSignedUrl).toHaveBeenLastCalledWith("signed.pdf", 300, { download: `계약서_${quote.quote_number}_서명본.pdf` });
+  });
+
   it("uses the direct quote linkage and rejects mismatched customers, stale versions and duplicates", () => {
     expect(shareDocumentScope(quote, contract, "contract")).toBe(true);
     expect(shareDocumentScope(quote, statement, "statement")).toBe(true);

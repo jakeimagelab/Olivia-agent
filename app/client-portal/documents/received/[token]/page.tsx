@@ -30,19 +30,23 @@ export default async function ReceivedDocumentsPage({ params }: { params: Promis
     <section className={styles.section} aria-label="받은 문서 목록">
       {documents.map((item) => {
         const pdf = `${endpoint}?kind=${item.kind}`;
+        const awaitingSignature = item.kind === "contract" && !item.signed;
         return <article className={styles.row} key={item.kind}>
           <FileText size={21} aria-hidden />
           <div>
             <small className={styles.small}>{DOCUMENT_MAIL_LABELS[item.kind]}{item.number ? ` · ${item.number}` : ""}</small>
             <h3>{item.title}</h3>
+            {awaitingSignature && <small className={styles.small}>{canSign ? "전자서명 후 PDF 다운로드" : "담당자에게 서명 가능한 새 링크를 요청해 주세요."}</small>}
             {item.signed && <small className={styles.small}>서명 완료 · {item.signed.name} · {new Date(item.signed.at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}</small>}
           </div>
-          <div className={styles.actions}>
+          <div className={styles.actions}>{awaitingSignature ? (
+            delivery.contract_html && <a className={styles.button} href={`${pdf}&preview=1`} target="_blank" rel="noreferrer">계약서 내용 보기</a>
+          ) : <>
             <a className={styles.button} href={pdf} target="_blank" rel="noreferrer" aria-label={`${DOCUMENT_MAIL_LABELS[item.kind]} PDF 보기`}>PDF 보기</a>
             <a className={styles.button} href={`${pdf}&download=1`} aria-label={`${DOCUMENT_MAIL_LABELS[item.kind]} ${item.signed ? "서명본 " : ""}다운로드`}>
               <Download size={14} aria-hidden />{item.signed ? "서명본 다운로드" : "다운로드"}
             </a>
-          </div>
+          </>}</div>
         </article>;
       })}
     </section>

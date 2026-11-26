@@ -81,10 +81,11 @@ export async function previewDocumentMail(db: SupabaseClient, anchor: DocumentMa
   if (last.error) throw last.error;
   const row = sources.find(({ choice }) => choice.kind === anchor.kind && choice.id === anchor.id)?.row;
   const brand = documentBrand(sources);
+  const brandLabel = CONTRACT_BRAND_CONFIG[brand].label;
   const customerName = row?.hospital_name || "고객";
   const recipient = row?.email || sources.find((entry) => entry.row.email)?.row.email || "";
   return {
-    customerName, recipient, subject: `[${CONTRACT_BRAND_CONFIG[brand].label}] ${customerName} 문서 안내`,
+    customerName, recipient, brandLabel, subject: `[${brandLabel}] ${customerName} 문서 안내`,
     message: defaultDocumentMailMessage(brand, documentContactName(sources)),
     documents: sources.map(({ choice }) => choice),
     ...(last.data?.sent_at ? { latest: { recipient: last.data.recipient_email, sentAt: last.data.sent_at, signedAt: last.data.signed_at || undefined } } : {}),

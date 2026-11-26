@@ -16,6 +16,7 @@ export type DocumentMailPreview = {
   customerName: string;
   recipient: string;
   subject: string;
+  brandLabel?: string;
   message: string;
   documents: DocumentMailChoice[];
   latest?: { recipient: string; sentAt: string; signedAt?: string };
@@ -37,6 +38,13 @@ export type DeliveredDocument = {
 
 export const isDocumentMailKind = (value: unknown): value is DocumentMailKind =>
   value === "quote" || value === "statement" || value === "contract";
+
+export function formatDocumentMailSubject(brandLabel: string, customerName: string, documents: readonly Pick<DocumentMailReference, "kind">[]) {
+  const names = Object.entries(DOCUMENT_MAIL_LABELS)
+    .filter(([kind]) => documents.some((document) => document.kind === kind))
+    .map(([, label]) => label);
+  return `[${brandLabel}입니다] ${customerName} ${names.join("/") || "문서"} 송부 안내`;
+}
 
 export function receivedDocumentsPath(token: string) {
   return `/client-portal/documents/received/${encodeURIComponent(token)}`;

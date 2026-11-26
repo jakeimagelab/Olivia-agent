@@ -5,7 +5,7 @@ import { Mail, RefreshCcw } from "lucide-react";
 import type { StatementReceiptMode } from "@/lib/quote/transactionStatementDetails";
 import { transactionStatementPath } from "@/lib/quote/transactionStatementSnapshot";
 import {
-  DOCUMENT_MAIL_LABELS, type DocumentMailChoice, type DocumentMailKind, type DocumentMailPreview, type DocumentMailProgress, type DocumentMailReference, type DocumentMailSelection,
+  DOCUMENT_MAIL_LABELS, formatDocumentMailSubject, type DocumentMailChoice, type DocumentMailKind, type DocumentMailPreview, type DocumentMailProgress, type DocumentMailReference, type DocumentMailSelection,
 } from "@/lib/document-mail/shared";
 import styles from "./DocumentMail.module.css";
 
@@ -64,6 +64,7 @@ export default function DocumentMailPanel({ anchor, preview, preferredContractId
   const titleId = useId();
   const submitting = useRef(false);
   const [selection, setSelection] = useState<Partial<Record<DocumentMailKind, string | null>>>({});
+  const [customSubject, setCustomSubject] = useState<string | null>(null);
   const [receiptMode, setReceiptMode] = useState<"bundle" | StatementReceiptMode>("bundle");
   const [phase, setPhase] = useState<keyof typeof PHASES | null>(null);
   const [pending, setPending] = useState<BundleRequest | null>(null);
@@ -82,6 +83,9 @@ export default function DocumentMailPanel({ anchor, preview, preferredContractId
   const defaultSelection = { [anchor.kind]: anchor.id, ...(defaultContract && { contract: defaultContract.id }) };
   const selected = { ...defaultSelection, ...selection };
   const documents = preview.documents.filter((document) => selected[document.kind] === document.id);
+  const suggestedSubject = preview.brandLabel
+    ? formatDocumentMailSubject(preview.brandLabel, preview.customerName, documents)
+    : preview.subject;
   const receiptStatement = documents.length === 1 && documents[0].canRequestReceipt ? documents[0] : null;
   const activeReceiptMode = receiptStatement ? receiptMode : "bundle";
 
@@ -201,7 +205,9 @@ export default function DocumentMailPanel({ anchor, preview, preferredContractId
     </header>
     <form className={styles.form} onSubmit={submit}>
       <label className={styles.field}>받는 메일 주소<input name="to" type="email" defaultValue={preview.recipient} maxLength={254} required readOnly={locked} /></label>
-      <label className={styles.field}>제목<input name="subject" defaultValue={preview.subject} maxLength={200} required readOnly={locked} /></label>
+      <label className={styles.field}>제목<input name="subject" value={customSubject ?? suggestedSubject}
+        onChange={(event) => setCustomSubject(event.target.value === suggestedSubject ? null : event.target.value)}
+        maxLength={200} required readOnly={locked} /></label>
       <label className={styles.field}>내용<textarea name="message" defaultValue={preview.message} rows={4} maxLength={5000} required readOnly={locked} /></label>
       <fieldset className={styles.selection} disabled={locked}>
         <legend>함께 보낼 문서</legend>
