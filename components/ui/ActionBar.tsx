@@ -16,6 +16,7 @@ type ActionBarProps = {
   /* 좌측 상태 텍스트 — 예: "자동 저장됨 · 방금", "필수 2개 중 2개 입력됨", "4 / 218 선택" */
   status?: ReactNode;
   actions: ActionBarAction[];
+  className?: string;
 };
 
 const barStyle: CSSProperties = {
@@ -50,7 +51,7 @@ const buttonsRowStyle: CSSProperties = {
 // OLIVIA OS Desktop UI 제안서 1.4 + 3단계 — components/ui/WorkspaceActionBar.tsx(1차 작업
 // 2단계)를 그대로 옮겼다. 화면당 하나만 쓰는 컴포넌트를 두 벌 유지하지 않기 위해 원본은
 // 삭제하고 QuoteBuilder.tsx의 import만 이쪽으로 옮겼다(동작 변경 없음).
-export default function ActionBar({ status, actions }: ActionBarProps) {
+export default function ActionBar({ status, actions, className }: ActionBarProps) {
   if (process.env.NODE_ENV !== "production") {
     const primaryCount = actions.filter((action) => action.variant === "primary").length;
     if (primaryCount > 1) {
@@ -59,7 +60,7 @@ export default function ActionBar({ status, actions }: ActionBarProps) {
   }
 
   return (
-    <div style={barStyle}>
+    <div className={className} style={barStyle}>
       <div style={statusStyle}>{status}</div>
       <div style={buttonsRowStyle}>
         {actions.map((action) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { ModalCloseButton } from "./ModalCloseButton";
@@ -17,6 +17,7 @@ type ModalProps = {
 // 확인창)과 같은 골격(고정 inset, 어둡게 dim, 중앙 정렬)을 컴포넌트로 옮긴 것. 기존 클래스는
 // 그대로 두고(이미 여러 화면이 쓰고 있어 건드리지 않음), 새 화면은 이 컴포넌트를 쓴다.
 export default function Modal({ open, onClose, title, children, width = 480 }: ModalProps) {
+  const titleId = useId();
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -36,7 +37,7 @@ export default function Modal({ open, onClose, title, children, width = 480 }: M
       }}
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
-      <div style={{
+      <div role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} style={{
         width: `min(${typeof width === "number" ? `${width}px` : width}, 100%)`,
         maxHeight: "calc(100vh - 48px)", overflowY: "auto", borderRadius: 16, padding: 24,
         background: "var(--panel-bg)", boxShadow: "0 24px 80px rgba(13, 37, 35, .25)", position: "relative",
@@ -44,7 +45,7 @@ export default function Modal({ open, onClose, title, children, width = 480 }: M
         <ModalCloseButton onClick={onClose} absolute />
         {title ? (
           <div style={{ display: "flex", alignItems: "center", paddingRight: 40, gap: 16, marginBottom: 18 }}>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{title}</h2>
+            <h2 id={titleId} style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{title}</h2>
           </div>
         ) : null}
         {children}

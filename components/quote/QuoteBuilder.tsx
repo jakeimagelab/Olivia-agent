@@ -7,8 +7,10 @@ import { useRouter } from "next/navigation";
 import { useDocumentPortalEditor } from "@/components/document-mail/DocumentPortalEditorContext";
 import { documentPortalHref } from "@/lib/document-mail/portal";
 import type { DocumentMailKind } from "@/lib/document-mail/shared";
+import { isPcrmUuid } from "@/lib/pcrm/validation";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
+import Button from "@/components/ui/Button";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { createMailingDraft } from "@/lib/mailingQueue";
@@ -41,12 +43,14 @@ import {
 import { createQuoteNumber, nextQuoteNumber, quoteNumberDate } from "@/lib/quote/quoteNumber";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 import QuoteDocument from "@/components/quote/QuoteDocument";
+import SavedQuotePicker from "@/components/quote/SavedQuotePicker";
 import type { QuoteDocumentData } from "@/lib/quote/quoteDocumentData";
 import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Download,
+  FileSearch,
   FileSpreadsheet,
   Maximize2,
   Plus,
@@ -331,6 +335,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
   const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
   const previewShellRef = useRef<HTMLDivElement>(null);
+  const previewPageRef = useRef<HTMLDivElement>(null);
   const quotePdfInputRef = useRef<HTMLInputElement>(null);
   const quoteStore = useQuoteStoreApi();
   // Agent가 채팅에서 건드려야 하는 필드는 QuoteBuilder만의 로컬 useState가 아니라 공유
@@ -412,6 +417,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   }, []);
   const [currentQuoteStatus, setCurrentQuoteStatus] = useState("draft");
   const [basePreviewScale, setBasePreviewScale] = useState(0.48);
+  const [previewPageHeight, setPreviewPageHeight] = useState(PREVIEW_PAGE_HEIGHT);
   const [previewZoom, setPreviewZoom] = useState(1);
   // startInPreview는 채팅에서 "미리보기 보여줘"(preview_quote)로 이 워크스페이스가 방금 새로
   // 열렸을 때만 의미가 있다 — lazy initializer라 마운트 시 한 번만 반영되고, 이미 마운트된
@@ -520,29 +526,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentOnly]);
-
-  useLayoutEffect(() => {
-    const shell = previewShellRef.current;
-    if (!previewVisible || !shell) return;
-
-    const updateScale = (width: number, height: number) => {
-      if (width <= 0 || (showFullscreenPreview && height <= 0)) return;
-      const widthScale = width / PREVIEW_PAGE_WIDTH;
-      setBasePreviewScale(showFullscreenPreview
-        ? Math.min(widthScale, height / PREVIEW_PAGE_HEIGHT)
-        : Math.min(1, widthScale));
-    };
-
-    const style = window.getComputedStyle(shell);
-    updateScale(
-      shell.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
-      shell.clientHeight - Number.parseFloat(style.paddingTop) - Number.parseFloat(style.paddingBottom),
-    );
-    const observer = new ResizeObserver(([entry]) => updateScale(entry.contentRect.width, entry.contentRect.height));
-    observer.observe(shell);
-    return () => observer.disconnect();
-    // 견적 불러오기 또는 전체화면 전환 시 실제 미리보기 노드가 다시 마운트된다.
-  }, [previewVisible, showFullscreenPreview]);
 
   useEffect(() => {
     if (!showFullscreenPreview) return;
@@ -1024,7 +1007,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
 
   const saveRecentQuote = (data: ContractQuoteData): Promise<ContractQuoteData | null> => {
     if (!hasMeaningfulQuoteContent(data)) {
-      setRecentQuoteMessage("병원명이나 견적 항목을 먼저 입력해주세요.");
+      const reason = "병원명이나 견적 항목을 먼저 입력해 주세요.";
+      setSaveFailureReason(reason);
+      setRecentQuoteMessage(reason);
       return Promise.resolve(null);
     }
     const sessionAtRequest = editorSessionRef.current;
@@ -1285,20 +1270,70 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   };
 
   const [openingPortal, setOpeningPortal] = useState(false);
-  const openQuotePortal = async (data: ContractQuoteData, tab: DocumentMailKind, saveCurrent = true) => {
+  const [portalError, setPortalError] = useState("");
+  const [quotePickerPurpose, setQuotePickerPurpose] = useState<"edit" | "portal" | null>(null);
+
+  const openSavedQuotePortal = (id: string, tab: DocumentMailKind = "quote") => {
+    if (!isPcrmUuid(id)) {
+      setPortalError("저장된 견적서의 문서 번호를 확인할 수 없습니다.");
+      return;
+    }
+    router.push(documentPortalHref({ kind: "quote", id }, tab));
+  };
+
+  const openQuotePortal = async () => {
     if (openingPortal) return;
+    setPortalError("");
+    const data = buildContractQuoteData();
+    if (!data.quoteId && !hasMeaningfulQuoteContent(data)) {
+      setQuotePickerPurpose("portal");
+      return;
+    }
     setOpeningPortal(true);
-    setRecentQuoteMessage("");
+    const requestToken = editorSessionRef.current.requestToken;
     try {
       await pendingSaveRef.current;
-      const currentId = editorSessionRef.current.quoteId;
-      const alreadySaved = currentId && quoteFormSnapshot(quoteStore.getState()) === lastSavedFormStateRef.current;
-      const saved = !saveCurrent ? data : alreadySaved ? { ...data, id: currentId } : await saveRecentQuote(data);
-      if (!saved?.id) return;
-      router.push(documentPortalHref({ kind: "quote", id: saved.id }, tab));
+      const session = editorSessionRef.current;
+      if (session.requestToken !== requestToken) return;
+      const currentSnapshot = quoteFormSnapshot(quoteStore.getState());
+      if (session.quoteId && currentSnapshot === lastSavedFormStateRef.current) {
+        openSavedQuotePortal(session.quoteId);
+        return;
+      }
+      if (!hasMeaningfulQuoteContent(data)) {
+        setPortalError("병원명이나 견적 항목을 입력한 뒤 문서 포털을 열어 주세요.");
+        return;
+      }
+      if (data.formState && currentSnapshot !== quoteFormSnapshot(data.formState)) {
+        setPortalError("편집한 내용이 있습니다. 문서 포털을 다시 눌러 주세요.");
+        return;
+      }
+      const saved = await saveRecentQuote(data);
+      if (!saved?.id) {
+        setAutosaveStatus("error");
+        return;
+      }
+      if (quoteFormSnapshot(quoteStore.getState()) !== lastSavedFormStateRef.current) {
+        setPortalError("저장하지 않은 변경사항이 있습니다. 문서 포털을 다시 눌러 주세요.");
+        return;
+      }
+      openSavedQuotePortal(saved.id);
+    } catch (error) {
+      setPortalError(error instanceof Error ? error.message : "문서 포털을 열지 못했습니다. 다시 시도해 주세요.");
     } finally {
       setOpeningPortal(false);
     }
+  };
+
+  const canOpenAnotherQuote = () => !hasPreviewContent
+    || quoteFormSnapshot(quoteStore.getState()) === lastSavedFormStateRef.current
+    || window.confirm("현재 견적서에 저장하지 않은 변경사항이 있습니다. 다른 견적서를 열까요?");
+
+  const chooseSavedQuote = (id: string) => {
+    if (id !== quoteDocumentId && !canOpenAnotherQuote()) return;
+    setQuotePickerPurpose(null);
+    if (quotePickerPurpose === "portal") openSavedQuotePortal(id);
+    else if (id !== quoteDocumentId) void loadExistingQuote(id);
   };
 
   const publishQuoteToPortal = async (
@@ -1350,11 +1385,10 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     }
   };
 
-  const goToContract = () => void openQuotePortal(buildContractQuoteData(), "contract");
-
   const [manualSaving, setManualSaving] = useState(false);
   const handleManualSave = async () => {
     setManualSaving(true);
+    setPortalError("");
     setRecentQuoteMessage("");
     const data = buildContractQuoteData();
     const saved = await saveRecentQuote(data);
@@ -1434,10 +1468,12 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   };
   const handleFinalComplete = async () => {
     setCompletingQuote(true);
+    setPortalError("");
     setRecentQuoteMessage("");
     const data = buildContractQuoteData();
     const saved = await saveRecentQuote(data);
     if (!saved?.id) {
+      setAutosaveStatus("error");
       setCompletingQuote(false);
       return;
     }
@@ -2119,6 +2155,36 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     memo,
   };
 
+  const hasPreviewContent = Boolean(quoteDocumentId || quoteTitle.trim() || customer.hospitalName.trim()
+    || customer.managerName.trim() || customer.phone.trim() || customer.email.trim() || customer.shootDate
+    || selectedPackage || selectedSingleItems.length || optionItems.length || visibleCustomItems.length || visibleBenefitItems.length
+    || finalAmount || memo.trim());
+
+  useLayoutEffect(() => {
+    const shell = previewShellRef.current;
+    const paper = previewPageRef.current;
+    if (!previewVisible || !hasPreviewContent || !shell || !paper) return;
+    const workspace = shell.closest("main.quote-app");
+
+    const measure = () => {
+      const style = window.getComputedStyle(shell);
+      const width = shell.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const height = shell.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      const paperHeight = paper.offsetHeight || PREVIEW_PAGE_HEIGHT;
+      const fitsHeight = showFullscreenPreview || (workspace?.clientWidth ?? 0) >= 760;
+      if (width <= 0 || (fitsHeight && height <= 0)) return;
+      const widthScale = width / PREVIEW_PAGE_WIDTH;
+      setPreviewPageHeight(paperHeight);
+      setBasePreviewScale(fitsHeight ? Math.min(widthScale, height / paperHeight, showFullscreenPreview ? Infinity : 1) : Math.min(1, widthScale));
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(shell);
+    observer.observe(paper);
+    return () => observer.disconnect();
+  }, [previewVisible, hasPreviewContent, showFullscreenPreview]);
+
   const quotePreviewShellNode = (
           <div
             className={`quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""} ${showFullscreenPreview ? "preview-shell preview-shell--fullscreen" : isDesktopWindow ? "preview-shell preview-shell--embedded" : "preview-shell"}`}
@@ -2139,10 +2205,10 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
               className="quote-preview-viewport"
               style={{
                 width: PREVIEW_PAGE_WIDTH * previewScale,
-                height: PREVIEW_PAGE_HEIGHT * previewScale,
+                height: previewPageHeight * previewScale,
               }}
             >
-              <QuoteDocument data={quoteDocumentData} scale={previewScale} />
+              <QuoteDocument data={quoteDocumentData} scale={previewScale} pageRef={previewPageRef} />
             </div>
           </div>
   );
@@ -2193,15 +2259,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     <>
     {isModal ? null : <GlobalHeader title="견적서 생성기" description="촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다." />}
     <main className={`${isDesktopWindow ? "flex h-full min-h-0 flex-col overflow-hidden" : isModal ? "" : "min-h-screen"} text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`} style={isModal ? undefined : { background: "var(--mesh-bg)" }}>
-      {/* isDesktopWindow에서는 이 상태 텍스트가 하단 WorkspaceActionBar의 status로 옮겨간다 —
-          기존 채팅 분할뷰 모달(isModal && !isDesktopWindow)은 그대로 상단에 유지한다. */}
-      {isModal && !isDesktopWindow ? (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px", borderBottom: "1px solid rgba(21,88,85,.1)", background: "#fafaf8" }}>
-          <span style={{ fontSize: 11.5, fontWeight: 700, color: autosaveStatus === "error" ? "#DC2626" : "#5a7470" }}>
-            {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
-          </span>
-        </div>
-      ) : null}
       {isModal && linkedWorkflowRunId && !documentOnly ? (
         <div style={{ padding: "10px 20px 0" }}>
           <ActiveMissionBar workflowRunId={linkedWorkflowRunId} />
@@ -2212,15 +2269,15 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           className="quote-builder-editor min-w-0 space-y-5"
           style={isDesktopWindow ? { alignSelf: "stretch" } : undefined}
         >
-          <header className="rounded-lg border border-[var(--quote-ink)]/15 bg-white px-5 py-5 shadow-sm">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[var(--quote-ink)]">
+          <header className="rounded-lg border border-[var(--quote-ink)]/15 bg-white p-4 shadow-sm">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-semibold text-[var(--quote-ink)]">
                 {cfg.label}
               </span>
               {!documentOnly ? <button
                 type="button"
                 onClick={toggleBrand}
-                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition hover:-translate-y-0.5"
+                className="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium"
                 style={{ borderColor: "var(--quote-ink)", color: "var(--quote-ink)" }}
               >
                 <RefreshCcw size={13} />
@@ -2842,7 +2899,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
                       <button
                         type="button"
                         className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5"
-                        onClick={() => void openQuotePortal(item, "contract", false)}
+                        onClick={() => { if (item.id === quoteDocumentId || canOpenAnotherQuote()) openSavedQuotePortal(item.id, "contract"); }}
                         disabled={openingPortal}
                       >
                         <FileText size={15} />
@@ -2888,150 +2945,72 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
             </div>
           </Panel>
 
-          {/* isDesktopWindow에서는 이 인라인 바 대신 창 하단 고정 WorkspaceActionBar를 쓴다
-              (OLIVIA OS 1차 작업 지시서 2/3단계) — 기존 채팅 분할뷰 모달과 /quote 풀페이지는
-              그대로 이 자리에 남는다. */}
-          {!isDesktopWindow && (
-          <div className="action-button-bar">
-            <button className="secondary-button" type="button" onClick={handleManualSave} disabled={manualSaving}>
-              <Save size={18} />
-              {manualSaving ? "저장 중…" : "임시저장 (⌘S)"}
-            </button>
-            <div style={{ position: "relative", flex: 1, minWidth: 140 }}>
-              <button className="primary-button" type="button" onClick={() => setShowDownloadMenu((v) => !v)} style={{ width: "100%" }}>
-                <Download size={18} />
-                {isGenerating ? "PDF 생성 중" : "다운로드"}
-                <ChevronDown size={14} />
-              </button>
-              {showDownloadMenu && (
-                <div style={{
-                  position: "absolute", bottom: "100%", left: 0, marginBottom: 4, zIndex: 30,
-                  background: "#fff", border: "1px solid rgba(21,88,85,.14)", borderRadius: 10,
-                  boxShadow: "0 12px 30px rgba(21,88,85,.14)", minWidth: 140, overflow: "hidden",
-                }}>
-                  <button
-                    type="button"
-                    onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}
-                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
-                  >
-                    <Download size={14} /> PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}
-                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, borderTop: "1px solid rgba(21,88,85,.08)", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
-                  >
-                    <FileSpreadsheet size={14} /> Excel
-                  </button>
-                </div>
-              )}
-            </div>
-            <button
-              className="primary-button"
-              type="button"
-              onClick={handleFinalComplete}
-              disabled={completingQuote}
-              style={{ background: "#155855" }}
-            >
-              <CheckCircle2 size={18} />
-              {completingQuote ? "최종완료 처리 중…" : "최종완료"}
-            </button>
-            {!documentOnly ? <button
-              className="primary-button"
-              type="button"
-              onClick={goToContract}
-              disabled={openingPortal}
-              style={{ background: "var(--quote-accent)" }}
-            >
-              <FileText size={18} />
-              {openingPortal ? "문서 준비 중…" : "계약서 작성"}
-            </button> : null}
-            {!documentOnly ? <button className="secondary-button" type="button" onClick={resetToNewQuote}>
-              <RefreshCcw size={18} />
-              초기화
-            </button> : null}
-          </div>
-          )}
+
         </div>
 
-        <aside className="quote-builder-preview min-w-0">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+        <aside className="quote-builder-preview min-w-0" aria-label="견적서 미리보기">
+          <header className="quote-preview-header">
             <div>
-              <p className="text-sm font-bold text-[var(--quote-ink)]">실시간 견적서 미리보기</p>
-              <p className="text-xs text-[#797168]">A4 가로형 1페이지 · 100%는 가로 맞춤</p>
+              <h2>실시간 견적서 미리보기</h2>
+              <p>A4 가로 · 맞춤 100%</p>
             </div>
-            <div className="preview-zoom-controls" aria-label="견적서 미리보기 확대 축소">
-              <button type="button" onClick={zoomOutPreview} aria-label="미리보기 축소">
-                <ZoomOut size={16} />
-              </button>
-              <button type="button" onClick={resetPreviewZoom} className="zoom-percent" aria-label="미리보기 확대 비율 초기화">
-                {previewPercent}%
-              </button>
-              <button type="button" onClick={zoomInPreview} aria-label="미리보기 확대">
-                <ZoomIn size={16} />
-              </button>
-              <button type="button" onClick={() => setShowFullscreenPreview(true)} aria-label="전체화면 보기">
-                <Maximize2 size={16} />
-              </button>
+            <div className="quote-preview-actions">
+              {hasPreviewContent && <div className="quote-preview-controls" aria-label="견적서 미리보기 배율">
+                <button type="button" onClick={zoomOutPreview} aria-label="미리보기 축소" title="축소">
+                  <ZoomOut size={16} />
+                </button>
+                <button type="button" onClick={resetPreviewZoom} aria-label="문서 전체 맞춤" title="문서 전체 맞춤">
+                  {previewPercent}%
+                </button>
+                <button type="button" onClick={zoomInPreview} aria-label="미리보기 확대" title="확대">
+                  <ZoomIn size={16} />
+                </button>
+                <button type="button" onClick={() => setShowFullscreenPreview(true)} aria-label="전체화면 보기" title="전체화면">
+                  <Maximize2 size={16} />
+                </button>
+              </div>}
+              {!documentOnly && <Button icon={<FileSearch size={15} />} disabled={openingPortal} onClick={() => {
+                setShowDownloadMenu(false);
+                setPortalError("");
+                setQuotePickerPurpose("edit");
+              }}>견적서 불러오기</Button>}
+              {!documentPortal && <Button variant="primary" icon={<FolderOpen size={15} />} disabled={openingPortal || manualSaving || completingQuote} onClick={() => {
+                setShowDownloadMenu(false);
+                void openQuotePortal();
+              }}>{openingPortal ? "문서 준비 중…" : "문서 포털"}</Button>}
             </div>
-          </div>
+          </header>
 
-          {showFullscreenPreview && typeof document !== "undefined"
-            ? createPortal(quotePreviewShellNode, document.body)
-            : quotePreviewShellNode}
-          {!documentPortal && <div className="mt-3 flex justify-end">
-            <button className="secondary-button" type="button" disabled={openingPortal} onClick={() => void openQuotePortal(buildContractQuoteData(), "quote")}>
-              <FolderOpen size={16} /> {openingPortal ? "문서 준비 중…" : "문서 포털"}
-            </button>
+          {hasPreviewContent ? (
+            showFullscreenPreview && typeof document !== "undefined"
+              ? createPortal(quotePreviewShellNode, document.body)
+              : quotePreviewShellNode
+          ) : <div className="quote-preview-empty">
+            <FileText size={27} strokeWidth={1.5} aria-hidden />
+            <p>견적 내용을 입력하면 여기에 표시됩니다.</p>
           </div>}
         </aside>
       </section>
-      {/* OLIVIA OS 1차 작업 지시서 2/3단계 — 창 하단 고정 액션 바. AppWindow의 .content가
-          이미 overflow:auto라 sticky bottom이 콘텐츠 스크롤과 무관하게 바닥에 붙는다(부모를
-          flex-column으로 다시 짤 필요가 없다). "다운로드"의 PDF/Excel 드롭다운은 기존 상태
-          (showDownloadMenu)와 로직을 그대로 재사용하고, 바 바로 위에 뜨도록 자리만 옮겼다. */}
-      {isDesktopWindow && (
-        <div style={{ position: "sticky", bottom: 0, zIndex: 20 }}>
-          {autosaveStatus === "error" ? (
-            <div role="alert" style={{ margin: "0 20px 8px", border: "1px solid #efb7aa", borderLeft: "4px solid #c43c2a", borderRadius: 8, padding: "9px 12px", background: "#fff4f1", color: "#9e321f", fontSize: 12, fontWeight: 700, lineHeight: 1.55 }}>
-              {saveFailureNotice}
-            </div>
-          ) : null}
-          {showDownloadMenu && (
-            <div style={{
-              position: "absolute", bottom: "100%", right: 20, marginBottom: 4, zIndex: 30,
-              background: "#fff", border: "1px solid rgba(21,88,85,.14)", borderRadius: 10,
-              boxShadow: "0 12px 30px rgba(21,88,85,.14)", minWidth: 140, overflow: "hidden",
-            }}>
-              <button
-                type="button"
-                onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}
-                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
-              >
-                <Download size={14} /> PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}
-                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: 0, borderTop: "1px solid rgba(21,88,85,.08)", background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#155855" }}
-              >
-                <FileSpreadsheet size={14} /> Excel
-              </button>
-            </div>
-          )}
-          <ActionBar
-            status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
-            actions={[
-              ...(!documentOnly ? [{ key: "reset", label: "초기화", onClick: resetToNewQuote, icon: <RefreshCcw size={14} /> }] : []),
-              { key: "save", label: manualSaving ? "저장 중…" : "임시저장 (⌘S)", onClick: handleManualSave, disabled: manualSaving, icon: <Save size={14} /> },
-              { key: "download", label: isGenerating ? "PDF 생성 중" : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), icon: <Download size={14} /> },
-              { key: "complete", label: completingQuote ? "최종완료 처리 중…" : "최종완료", onClick: handleFinalComplete, disabled: completingQuote, icon: <CheckCircle2 size={14} /> },
-              ...(!documentOnly ? [{ key: "contract", label: openingPortal ? "문서 준비 중…" : "계약서 작성", onClick: goToContract, disabled: openingPortal, variant: "primary" as const, icon: <FileText size={14} /> }] : []),
-            ]}
-          />
-        </div>
-      )}
+
+      <div className="quote-footer">
+        {(portalError || autosaveStatus === "error") && <div className="quote-footer-error" role="alert">{portalError || saveFailureNotice}</div>}
+        {showDownloadMenu && <div className="quote-download-menu">
+          <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}><Download size={15} /> PDF</button>
+          <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}><FileSpreadsheet size={15} /> Excel</button>
+        </div>}
+        <ActionBar
+          className="quote-action-bar"
+          status={<span role="status">{autosaveStatus === "saving" ? "저장 중…" : autosaveStatus === "saved" ? "저장됨" : dirty && autosaveStatus !== "error" ? "저장 안 된 변경사항 있음" : ""}</span>}
+          actions={[
+            ...(!documentOnly ? [{ key: "reset", label: "초기화", onClick: resetToNewQuote, disabled: openingPortal, icon: <RefreshCcw size={15} /> }] : []),
+            { key: "save", label: manualSaving ? "저장 중…" : "임시저장", onClick: handleManualSave, disabled: manualSaving || openingPortal, icon: <Save size={15} /> },
+            { key: "download", label: isGenerating ? "PDF 생성 중…" : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), disabled: isGenerating, icon: <Download size={15} /> },
+            { key: "complete", label: completingQuote ? "처리 중…" : "최종완료", onClick: handleFinalComplete, disabled: completingQuote || openingPortal, icon: <CheckCircle2 size={15} /> },
+          ]}
+        />
+      </div>
     </main>
+    {quotePickerPurpose && <SavedQuotePicker purpose={quotePickerPurpose} onChoose={chooseSavedQuote} onClose={() => setQuotePickerPurpose(null)} />}
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
         <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24, position: "relative" }}>
