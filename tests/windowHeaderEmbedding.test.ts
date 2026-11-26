@@ -28,7 +28,7 @@ describe("Olivia AppWindow header ownership", () => {
     expect(photoAdapter).toContain("<DesktopWindowProvider value={true}>");
     expect(photoAdapter).toContain("hideHeader");
     expect(analysisShell).toContain('surface === "window" ? null');
-    expect(contract).toContain("const isDesktopWindow = isModal && useDesktopWindowMode()");
+    expect(contract).toContain("const isDesktopWindow = useDesktopWindowMode() && isModal");
     expect(contract).toContain("return isDesktopWindow ? null : isModal ?");
     expect(conti).toContain("const isDesktopWindow = useDesktopWindowMode()");
     expect(conti).toContain("{isDesktopWindow ? null : (");

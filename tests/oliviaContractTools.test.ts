@@ -129,6 +129,16 @@ describe("update_contract_terms", () => {
     });
     expect(execution.result.success).toBe(false);
   });
+
+  it("최종완료된 계약서의 조건은 보존한다", async () => {
+    contractRow.status = "final";
+    contractRow.payment_terms = "촬영 전날";
+    const execution = await call("update_contract_terms", { paymentTerms: "결과물 확인 후" }, {
+      ...baseContext, activeWorkspace: "contract", activeResourceId: "contract-1",
+    });
+    expect(execution.result.success).toBe(false);
+    expect(contractRow.payment_terms).toBe("촬영 전날");
+  });
 });
 
 describe("request_contract_signature / request_contract_publish", () => {

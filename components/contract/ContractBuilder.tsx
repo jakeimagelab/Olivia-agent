@@ -1,6 +1,6 @@
 "use client";
 import type { PointerEvent } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
@@ -12,6 +12,7 @@ import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useContractPdfHandlerStore } from "@/lib/store/useContractPdfHandlerStore";
 import { computeContractDeposit } from "@/lib/contract/computeContractDeposit";
+import { contractContentPayload } from "@/lib/contract/contractEdits";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import { isContractCoreCompleted } from "@/lib/core/readModels/projectViewState";
@@ -22,6 +23,9 @@ import {
   type ContractBrand,
   type ContractQuoteData as QuoteData,
 } from "@/lib/contract/contractDocument";
+import ContractDocumentPreview from "./ContractDocumentPreview";
+import ContractTermsEditor from "./ContractTermsEditor";
+import styles from "./ContractBuilder.module.css";
 
 const THEME: Record<ContractBrand, {
   teal: string; orange: string;
@@ -69,18 +73,18 @@ export default function ContractBuilder({
   registerRequestClose?: (fn: (() => void) | null) => void;
 } = {}) {
   const isModal = mode === "modal";
-  const isDesktopWindow = isModal && useDesktopWindowMode();
-  const previewFrameRef = useRef<HTMLIFrameElement>(null);
+  const isDesktopWindow = useDesktopWindowMode() && isModal;
   const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   const isSigningRef = useRef(false);
   const [quote,      setQuote]      = useState<QuoteData | null>(null);
-  const [contractHtml, setContractHtml] = useState("");
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [error,      setError]      = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const [mailingQueued, setMailingQueued] = useState(false);
   const [mailingNotice, setMailingNotice] = useState("");
   const [contractId, setContractId] = useState<string | null>(null);
+  const [loadedEditLock, setLoadedEditLock] = useState<string | null>(null);
+  const savedContractRef = useRef<{ id: string; updatedAt?: string | null } | null>(null);
   const [linkedWorkflowRunId, setLinkedWorkflowRunId] = useState<string | undefined>(modalWorkflowRunId);
   const [sourceQuoteRecordId, setSourceQuoteRecordId] = useState<string | null>(sourceQuoteId ?? null);
   const [sourceQuoteApproved, setSourceQuoteApproved] = useState<boolean | null>(null);
@@ -93,9 +97,14 @@ export default function ContractBuilder({
   const cfg = CONTRACT_BRAND_CONFIG[brand];
 
   // Workspace Modal 모드 전용 — dirty 추적/자동저장/닫기 확인 (mode="page"일 땐 전부 미사용).
-  const lastSavedSnapshotRef = useRef<string>("");
-  const pendingSaveRef = useRef<Promise<string | null> | null>(null);
-  const [dirty, setDirty] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState("");
+  const pendingSaveRef = useRef<{ snapshot: string; task: Promise<string | null> } | null>(null);
+  const documentSnapshot = useMemo(() => JSON.stringify({ quote, signatureDataUrl }), [quote, signatureDataUrl]);
+  const latestSnapshotRef = useRef(documentSnapshot);
+  latestSnapshotRef.current = documentSnapshot;
+  const savedSnapshotRef = useRef(savedSnapshot);
+  savedSnapshotRef.current = savedSnapshot;
+  const contractHtml = useMemo(() => quote ? buildContractHtml(quote, signatureDataUrl, brand) : "", [quote, signatureDataUrl, brand]);
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveFailureReason, setSaveFailureReason] = useState("");
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
@@ -140,6 +149,8 @@ export default function ContractBuilder({
     && coreSnapshot
     && isContractCoreCompleted(coreSnapshot, contractDocumentId),
   );
+  const editLock = loadedEditLock ?? (contractCoreCompleted || completeState === "done" ? "최종완료된 계약서입니다." : null);
+  const dirty = Boolean(isModal && quote && !editLock && documentSnapshot !== savedSnapshot);
   useEffect(() => {
     const current = useOliviaContextStore.getState();
     if (current.activeWorkspace !== "contract" || current.activeResourceId !== contractDocumentId) {
@@ -169,12 +180,12 @@ export default function ContractBuilder({
       capabilities: ["contract.edit", "contract.sign", "contract.complete", "contract.publish", "contract.download_pdf"],
       documentStatus: publishState === "done" ? "published" : contractCoreCompleted ? "final" : "draft",
       brand,
-      canEdit: !contractCoreCompleted && publishState !== "done",
+      canEdit: !editLock && publishState !== "done",
       canComplete,
       canPublish: Boolean(contractDocumentId),
       canFinalize: canComplete,
     });
-  }, [brand, contractContextClientName, contractCoreCompleted, contractDocumentId, hasContractQuote, linkedWorkflowRunId, modalClientId, publishState, setOliviaCurrentDocument, setOliviaPageContext]);
+  }, [brand, contractContextClientName, contractCoreCompleted, contractDocumentId, editLock, hasContractQuote, linkedWorkflowRunId, modalClientId, publishState, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
     setOliviaCurrentDocumentTotal(quote?.totalAmount, dirty);
@@ -182,124 +193,112 @@ export default function ContractBuilder({
   }, [quote?.totalAmount, dirty, setOliviaCurrentDocumentTotal]);
 
   useEffect(() => {
-    if (!isModal) return;
-    // resourceId(기존 계약서)가 있으면 그대로 불러오고, 없으면 그 고객의 저장된 견적서를
-    // 찾아 계약서 초안의 기초 데이터로 쓴다(계약서는 견적 데이터를 그대로 이어받는 문서라
-    // 견적서가 아직 없으면 고객 기본 정보만으로 빈 계약서를 시작한다).
-    if (resourceId) {
-      const loadContract = () => {
-        setError("");
-        return fetch(`/api/contracts/${resourceId}`)
-        .then(async (r) => {
-          const json = await r.json().catch(() => null);
-          if (!r.ok || !json?.ok) throw new Error(json?.error || `HTTP ${r.status}`);
-          return json;
-        })
-        .then((json) => {
-          const contract = json.data as Record<string, unknown>;
-          const contractClientId = typeof contract.client_id === "string" ? contract.client_id : undefined;
-          const contractWorkflowRunId = typeof contract.workflow_run_id === "string" ? contract.workflow_run_id : undefined;
-          if (documentOnly && modalClientId && contractClientId !== modalClientId) {
-            throw new Error("이 고객에게 연결된 계약서가 아닙니다.");
-          }
-          if (documentOnly && modalWorkflowRunId && contractWorkflowRunId !== modalWorkflowRunId) {
-            throw new Error("이 촬영 건에 연결된 계약서가 아닙니다.");
-          }
-          const loadedQuote = normalizeContractQuoteData(contract.quote_data, contract);
-          if (!loadedQuote) throw new Error("저장된 계약서에 견적 정보가 없습니다.");
-          setContractId(resourceId);
-          if (typeof contract.workflow_run_id === "string") setLinkedWorkflowRunId(contract.workflow_run_id);
-          setSourceQuoteRecordId(typeof contract.source_quote_id === "string" ? contract.source_quote_id : null);
-          setSourceQuoteApproved(null);
-          // deposit_rate/payment_terms/delivery_terms/special_terms는 quote_data(jsonb) 안이
-          // 아니라 contracts 테이블의 별도 컬럼이라 매번 병합해서 넣는다(채팅 update_contract_terms
-          // 도구가 이 컬럼들만 patch하므로, quote_data 자체는 안 건드려도 최신 상태로 보인다).
-          setQuote(loadedQuote);
-          setSignatureDataUrl(String(contract.signature_data_url ?? ""));
-          setOliviaCurrentDocument(resourceId, "contract", `${loadedQuote.hospitalName || "고객"} 계약서`, {
-            clientId: typeof contract.client_id === "string" ? contract.client_id : undefined,
-            clientName: loadedQuote.hospitalName || undefined,
-            projectId: typeof contract.workflow_run_id === "string" ? contract.workflow_run_id : undefined,
-            projectName: loadedQuote.hospitalName || undefined,
-          });
-          lastSavedSnapshotRef.current = JSON.stringify({ quote: loadedQuote, signatureDataUrl: String(contract.signature_data_url ?? "") });
-        })
-        .catch((loadError) => {
-          console.error("contract load failed", loadError);
-          setError("계약서 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.");
-        });
-      };
-      void loadContract();
-      // 채팅으로 지금 열려 있는 계약서를 수정했을 때 새로고침 없이 화면에 바로 반영되도록
-      // (콘티/견적서와 동일한 패턴 — lib/olivia/agent/actionRouter.ts의 REFRESH_RESOURCE가
-      // 이 이벤트를 쏜다).
-      const onRefresh = (event: Event) => {
-        const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
-        if ((!detail?.resource || detail.resource === "contract") && (!detail?.resourceId || detail.resourceId === resourceId)) void loadContract();
-      };
-      window.addEventListener("olivia-resource-refresh", onRefresh);
-      return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
-    }
+    if (!isModal || (!resourceId && !sourceQuoteId)) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    setError("");
+
+    const read = async (url: string) => {
+      const response = await fetch(url, { signal, cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || "계약서 정보를 불러오지 못했습니다.");
+      return payload;
+    };
+
+    const loadContract = async (id: string, refresh = false) => {
+      const initialSnapshot = latestSnapshotRef.current;
+      const payload = await read(`/api/contracts/${encodeURIComponent(id)}`);
+      if (signal.aborted || (refresh && initialSnapshot !== latestSnapshotRef.current)) return;
+      const contract = payload.data as Record<string, unknown>;
+      const clientId = typeof contract.client_id === "string" ? contract.client_id : undefined;
+      const workflowRunId = typeof contract.workflow_run_id === "string" ? contract.workflow_run_id : undefined;
+      if (documentOnly && modalClientId && clientId !== modalClientId) throw new Error("이 고객에게 연결된 계약서가 아닙니다.");
+      if (documentOnly && modalWorkflowRunId && workflowRunId !== modalWorkflowRunId) throw new Error("이 촬영 건에 연결된 계약서가 아닙니다.");
+      const loadedQuote = normalizeContractQuoteData(contract.quote_data, contract);
+      if (!loadedQuote) throw new Error("저장된 계약서에 견적 정보가 없습니다.");
+      const signature = String(contract.signature_data_url ?? "");
+      savedContractRef.current = { id, updatedAt: typeof contract.updated_at === "string" ? contract.updated_at : null };
+      setSavedSnapshot(JSON.stringify({ quote: loadedQuote, signatureDataUrl: signature }));
+      setContractId(id);
+      setLinkedWorkflowRunId(workflowRunId ?? modalWorkflowRunId);
+      setSourceQuoteRecordId(typeof contract.source_quote_id === "string" ? contract.source_quote_id : null);
+      setSourceQuoteApproved(null);
+      setLoadedEditLock(typeof payload.editLock === "string" ? payload.editLock : null);
+      setBrand(/^(?:JKQ|JI)-/.test(loadedQuote.quoteNumber) ? "jakeimage" : "photoclinic");
+      setQuote(loadedQuote);
+      setSignatureDataUrl(signature);
+      setOliviaCurrentDocument(id, "contract", `${loadedQuote.hospitalName || "고객"} 계약서`, {
+        clientId, clientName: loadedQuote.hospitalName || undefined,
+        projectId: workflowRunId, projectName: loadedQuote.hospitalName || undefined,
+      });
+    };
+
+    const loadError = (cause: unknown) => {
+      if (signal.aborted) return;
+      console.error("contract load failed", cause);
+      setError(cause instanceof Error ? cause.message : "계약서 정보를 불러오지 못했습니다.");
+    };
+
+    const openSourceQuote = async (quoteId: string) => {
+      const encodedId = encodeURIComponent(quoteId);
+      const [quoteResult, contractResult] = await Promise.all([
+        read(`/api/quotes/${encodedId}`),
+        read(`/api/contracts?sourceQuoteId=${encodedId}&limit=1`),
+      ]);
+      if (signal.aborted) return;
+      const existingId = contractResult.contracts[0]?.id;
+      if (typeof existingId === "string") {
+        await loadContract(existingId);
+        return;
+      }
+      const sourceQuote = quoteResult.quote as Record<string, unknown>;
+      const loadedQuote = normalizeContractQuoteData(sourceQuote, sourceQuote);
+      if (!loadedQuote?.items.length) throw new Error("선택한 견적서에 계약서로 가져올 항목이 없습니다.");
+      const formState = sourceQuote.form_state as { brand?: string } | null;
+      setBrand(formState?.brand === "jakeimage" ? "jakeimage" : "photoclinic");
+      setQuote(loadedQuote);
+      setSignatureDataUrl("");
+      if (typeof sourceQuote.workflow_run_id === "string") setLinkedWorkflowRunId(sourceQuote.workflow_run_id);
+      setSourceQuoteRecordId(quoteId);
+      setSourceQuoteApproved(["published", "final"].includes(String(sourceQuote.status || "draft")));
+      setSavedSnapshot(JSON.stringify({ quote: loadedQuote, signatureDataUrl: "" }));
+    };
+
+    if (resourceId) void loadContract(resourceId).catch(loadError);
+    else if (sourceQuoteId) void openSourceQuote(sourceQuoteId).catch(loadError);
+
+    const onRefresh = (event: Event) => {
+      const detail = (event as CustomEvent<{ resource?: string; resourceId?: string }>).detail;
+      const id = savedContractRef.current?.id;
+      if (!id || (detail?.resource && detail.resource !== "contract") || (detail?.resourceId && detail.resourceId !== id)) return;
+      if (!pendingSaveRef.current && latestSnapshotRef.current === savedSnapshotRef.current) {
+        void loadContract(id, true).catch(loadError);
+      }
+    };
+    window.addEventListener("olivia-resource-refresh", onRefresh);
+    return () => {
+      controller.abort();
+      window.removeEventListener("olivia-resource-refresh", onRefresh);
+    };
+  }, [documentOnly, isModal, modalClientId, modalWorkflowRunId, resourceId, setOliviaCurrentDocument, sourceQuoteId]);
+
+  useEffect(() => {
+    if (!isModal || resourceId || sourceQuoteId || savedContractRef.current) return;
     if (documentOnly) {
-      setQuote(null);
       setError("이 고객에게 연결된 계약서가 없습니다.");
       return;
     }
-    if (sourceQuoteId) {
-      setError("");
-      setContractId(null);
-      setSignatureDataUrl("");
-      setQuote(null);
-      setSourceQuoteRecordId(sourceQuoteId);
-      setSourceQuoteApproved(null);
-      const controller = new AbortController();
-      fetch(`/api/quotes/${sourceQuoteId}`, { signal: controller.signal })
-        .then(async (response) => {
-          const json = await response.json().catch(() => null);
-          if (!response.ok || !json?.ok) throw new Error(json?.error || `HTTP ${response.status}`);
-          return json.quote as Record<string, unknown>;
-        })
-        .then((sourceQuote) => {
-          const loadedQuote = normalizeContractQuoteData(sourceQuote, sourceQuote);
-          if (!loadedQuote) throw new Error("견적 데이터를 계약서 형식으로 변환하지 못했습니다.");
-          if (loadedQuote.items.length === 0) throw new Error("선택한 견적서에 계약서로 가져올 항목이 없습니다.");
-          const formState = sourceQuote.form_state;
-          if (formState && typeof formState === "object" && (formState as Record<string, unknown>).brand === "jakeimage") {
-            setBrand("jakeimage");
-          } else {
-            setBrand("photoclinic");
-          }
-          setQuote(loadedQuote);
-          if (typeof sourceQuote.workflow_run_id === "string") setLinkedWorkflowRunId(sourceQuote.workflow_run_id);
-          setSourceQuoteApproved(["published", "final"].includes(String(sourceQuote.status || "draft")));
-          setOliviaCurrentDocument(undefined, "contract", `${loadedQuote.hospitalName || "고객"} 계약서`, {
-            clientId: typeof sourceQuote.client_id === "string" ? sourceQuote.client_id : modalClientId,
-            clientName: loadedQuote.hospitalName || undefined,
-            projectId: typeof sourceQuote.workflow_run_id === "string" ? sourceQuote.workflow_run_id : modalWorkflowRunId,
-            projectName: loadedQuote.hospitalName || undefined,
-          });
-          lastSavedSnapshotRef.current = JSON.stringify({ quote: loadedQuote, signatureDataUrl: "" });
-        })
-        .catch((loadError) => {
-          if (loadError instanceof DOMException && loadError.name === "AbortError") return;
-          console.error("source quote load failed", loadError);
-          setQuote(null);
-          setError(loadError instanceof Error ? loadError.message : "견적 정보를 불러올 수 없습니다.");
-        });
-      return () => controller.abort();
-    }
     if (!modalClientId) {
-      setQuote(null);
       setError("고객이 지정되지 않아 계약서를 열 수 없습니다. 고객관리에서 고객을 선택한 뒤 다시 시도해주세요.");
       return;
     }
     if (linkedWorkflowRunId && coreSnapshotLoading) return;
-    setQuote(null);
     setError("");
     const suffix = linkedWorkflowRunId
       ? `?workflowRunId=${encodeURIComponent(linkedWorkflowRunId)}`
       : "";
-    fetch(`/api/clients/${modalClientId}${suffix}`)
+    const controller = new AbortController();
+    fetch(`/api/clients/${modalClientId}${suffix}`, { signal: controller.signal })
       .then((r) => r.json())
       .then(async (clientResponse) => {
         if (!clientResponse.ok) throw new Error(clientResponse.error || "계약서에 연결된 고객 정보를 불러오지 못했습니다.");
@@ -312,11 +311,13 @@ export default function ContractBuilder({
         });
         const quoteId = coreQuoteId;
         if (quoteId) {
-          const qResponse = await fetch(`/api/quotes/${quoteId}`);
+          const qResponse = await fetch(`/api/quotes/${quoteId}`, { signal: controller.signal });
           const qRes = await qResponse.json().catch(() => null);
           if (!qResponse.ok || !qRes?.ok) throw new Error(qRes?.error || "견적 정보를 불러오지 못했습니다.");
           if (qRes.ok) {
             const q = qRes.quote;
+            const loadedQuote = normalizeContractQuoteData(q, q);
+            if (!loadedQuote) throw new Error("견적 정보를 계약서로 가져오지 못했습니다.");
             if (typeof q.workflow_run_id === "string") setLinkedWorkflowRunId(q.workflow_run_id);
             setSourceQuoteRecordId(quoteId);
             setSourceQuoteApproved(
@@ -324,32 +325,16 @@ export default function ContractBuilder({
                 ? coreQuoteApproved
                 : ["published", "final"].includes(String(q.status || "draft")),
             );
-            setQuote({
-              hospitalName: q.hospital_name || "",
-              contactName: q.contact_name || "",
-              phone: q.phone || "",
-              email: q.email || "",
-              quoteNumber: q.quote_number || "",
-              quoteDate: q.quote_date || new Date().toISOString().slice(0, 10),
-              shootDate: q.shoot_date || null,
-              validUntil: q.valid_until || "",
-              items: q.items ?? [],
-              supplyAmount: q.supply_amount || 0,
-              discountAmount: q.discount_amount || 0,
-              vat: q.vat || 0,
-              taxMode: q.form_state?.taxMode === "excluded" || q.form_state?.taxMode === "included" ? q.form_state.taxMode : "separate",
-              totalAmount: q.total_amount || 0,
-              depositAmount: q.deposit_amount || 0,
-              balanceAmount: q.balance_amount || 0,
-              memos: q.memos ?? null,
-            });
+            setBrand(q.form_state?.brand === "jakeimage" ? "jakeimage" : "photoclinic");
+            setSavedSnapshot(JSON.stringify({ quote: loadedQuote, signatureDataUrl: "" }));
+            setQuote(loadedQuote);
             return;
           }
         }
         setSourceQuoteRecordId(null);
         setSourceQuoteApproved(null);
         const today = new Date().toISOString().slice(0, 10);
-        setQuote({
+        const loadedQuote: QuoteData = {
           hospitalName: coreSnapshot?.client.name || client?.name || "",
           contactName: client?.manager_name || "",
           phone: client?.phone || "",
@@ -362,12 +347,16 @@ export default function ContractBuilder({
           supplyAmount: 0, discountAmount: 0, vat: 0, taxMode: "separate",
           totalAmount: 0, depositAmount: 0, balanceAmount: 0,
           memos: null,
-        });
+        };
+        setSavedSnapshot(JSON.stringify({ quote: loadedQuote, signatureDataUrl: "" }));
+        setQuote(loadedQuote);
       })
       .catch((loadError) => {
+        if (controller.signal.aborted) return;
         console.error("contract client load failed", loadError);
         setError(loadError instanceof Error ? loadError.message : "계약서 고객 정보를 불러오지 못했습니다.");
       });
+    return () => controller.abort();
   }, [coreQuoteApproved, coreQuoteId, coreSnapshot?.client.name, coreSnapshot?.project.name, coreSnapshotLoading, documentOnly, isModal, linkedWorkflowRunId, modalClientId, modalWorkflowRunId, resourceId, setOliviaCurrentDocument, sourceQuoteId]);
 
   useEffect(() => {
@@ -443,14 +432,11 @@ export default function ContractBuilder({
     }
   }, [isModal, setOliviaCurrentDocument]);
 
-  useEffect(() => {
-    if (!quote) return;
-    setContractHtml(buildContractHtml(quote, signatureDataUrl, brand));
-  }, [quote, signatureDataUrl, brand]);
-
-  const updateQuote = (key: keyof QuoteData, value: string) => {
-    setQuote((prev) => (prev ? { ...prev, [key]: value } : prev));
+  const changeQuote = (update: Partial<QuoteData>) => {
+    if (!editLock) setQuote((current) => current ? { ...current, ...update } : current);
   };
+
+  const updateQuote = (key: keyof QuoteData, value: string) => changeQuote({ [key]: value });
 
   const getSignaturePoint = (event: PointerEvent<HTMLCanvasElement>) => {
     const canvas = signatureCanvasRef.current;
@@ -464,6 +450,7 @@ export default function ContractBuilder({
   };
 
   const startSignature = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (editLock) return;
     const canvas = signatureCanvasRef.current;
     const point = getSignaturePoint(event);
     if (!canvas || !point) return;
@@ -500,6 +487,7 @@ export default function ContractBuilder({
   };
 
   const clearSignature = () => {
+    if (editLock) return;
     const canvas = signatureCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -591,6 +579,7 @@ export default function ContractBuilder({
     if (!quote) return;
     const XLSX = await import("xlsx");
     const hospitalName = quote.hospitalName || "병원";
+    const payments = quote.depositRate == null ? quote : computeContractDeposit(quote.totalAmount, quote.depositRate);
 
     const styleSheet = (ws: any, colWidths: number[]) => {
       ws["!cols"] = colWidths.map((w) => ({ wch: w }));
@@ -616,8 +605,8 @@ export default function ContractBuilder({
       ["할인", "", "", "", -quote.discountAmount, ""],
       [quoteTaxLabel(quote.taxMode), "", "", "", quote.vat, ""],
       ["합계", "", "", "", quote.totalAmount, ""],
-      ["선금", "", "", "", quote.depositAmount, ""],
-      ["잔금", "", "", "", quote.balanceAmount, ""],
+      ["선금", "", "", "", payments.depositAmount, ""],
+      ["잔금", "", "", "", payments.balanceAmount, ""],
     ]), [24, 22, 12, 8, 14, 16]);
 
     const wb = XLSX.utils.book_new();
@@ -692,80 +681,64 @@ export default function ContractBuilder({
   const effectiveWorkflowRunId = (pageParams: URLSearchParams) =>
     linkedWorkflowRunId || (isModal ? modalWorkflowRunId : pageParams.get("workflowRunId"));
 
-  const handleSave = async (): Promise<string | null> => {
-    if (!quote) return null;
+  const persistDraft = async (draft: QuoteData, snapshot: string, existingId?: string | null): Promise<string | null> => {
     setSaveState("saving");
+    setAutosaveStatus("saving");
     setError("");
     const pageParams = new URLSearchParams(isModal ? "" : window.location.search);
-    const linkIds = isModal ? { clientId: modalClientId, workflowRunId: linkedWorkflowRunId || modalWorkflowRunId } : {
-      clientId: effectiveClientId(pageParams) ?? undefined,
-      workflowRunId: effectiveWorkflowRunId(pageParams) ?? undefined,
+    const payload = {
+      ...contractContentPayload(draft),
+      signatureDataUrl: signatureDataUrl || null,
+      hospitalName: draft.hospitalName,
+      contactName: draft.contactName,
+      email: draft.email,
+      clientId: effectiveClientId(pageParams) || undefined,
+      workflowRunId: effectiveWorkflowRunId(pageParams) || undefined,
     };
-    try {
-      const persistContractContent = async (id: string) => {
-        const response = await fetch(`/api/contracts/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            quoteData: quote,
-            signatureDataUrl: signatureDataUrl || null,
-            hospitalName: quote.hospitalName,
-            contactName: quote.contactName,
-            email: quote.email,
-            ...linkIds,
-          }),
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || !payload?.ok) throw new Error(payload?.error || "계약서를 저장하지 못했습니다.");
-      };
 
-      let savedId: string | null;
-      if (contractId) {
-        await persistContractContent(contractId);
-        savedId = contractId;
-      } else if (sourceQuoteRecordId && sourceQuoteApproved) {
-        const createResponse = await fetch("/api/contracts/from-quote", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quoteId: sourceQuoteRecordId }),
-        });
-        const created = await createResponse.json().catch(() => null);
-        if (!createResponse.ok || !created?.ok) {
-          throw new Error(created?.error || "확정 견적에서 계약서를 생성하지 못했습니다.");
+    const write = async (url: string, method: "POST" | "PATCH", body: object) => {
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.ok) throw new Error(result?.error || "계약서를 저장하지 못했습니다.");
+      return result;
+    };
+
+    try {
+      let savedId = existingId || savedContractRef.current?.id;
+      let updatedAt: string | null | undefined;
+      if (!savedId && sourceQuoteRecordId && sourceQuoteApproved) {
+        const created = await write("/api/contracts/from-quote", "POST", { quoteId: sourceQuoteRecordId });
+        if (created.idempotent) {
+          throw new Error("이 견적의 계약서가 이미 생성되었습니다. 입력 내용을 복사한 뒤 계약서를 다시 열어 주세요.");
         }
-        const createdId = String(created.contractId);
-        savedId = createdId;
-        await persistContractContent(createdId);
-        setContractId(createdId);
+        savedId = String(created.contractId);
+        savedContractRef.current = { id: savedId };
+        setContractId(savedId);
         if (typeof created.workflowRunId === "string") setLinkedWorkflowRunId(created.workflowRunId);
-        else if (linkIds.workflowRunId) setLinkedWorkflowRunId(linkIds.workflowRunId);
-      } else {
-        const r = await fetch("/api/contracts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            quoteNumber: quote.quoteNumber, hospitalName: quote.hospitalName,
-            contactName: quote.contactName, email: quote.email,
-            quoteData: quote, signatureDataUrl: signatureDataUrl || null,
-            sourceQuoteId: sourceQuoteRecordId,
-            ...linkIds,
-          }),
-        });
-        const d = await r.json();
-        if (!d.ok) throw new Error(d.error);
-        setContractId(d.id);
-        if (typeof d.workflowRunId === "string") setLinkedWorkflowRunId(d.workflowRunId);
-        else if (linkIds.workflowRunId) setLinkedWorkflowRunId(linkIds.workflowRunId);
-        savedId = d.id;
       }
+      if (savedId) {
+        const expectedUpdatedAt = savedContractRef.current?.id === savedId ? savedContractRef.current.updatedAt : undefined;
+        const saved = await write(`/api/contracts/${encodeURIComponent(savedId)}`, "PATCH", { ...payload, expectedUpdatedAt });
+        updatedAt = saved.updatedAt;
+      } else {
+        const created = await write("/api/contracts", "POST", {
+          ...payload, quoteNumber: draft.quoteNumber, sourceQuoteId: sourceQuoteRecordId,
+        });
+        savedId = String(created.id);
+        updatedAt = created.updatedAt;
+        setContractId(savedId);
+      }
+      savedContractRef.current = { id: savedId, updatedAt };
+      savedSnapshotRef.current = snapshot;
+      setSavedSnapshot(snapshot);
       setSaveState("saved");
       setSaveFailureReason("");
       setAutosaveStatus("saved");
-      setTimeout(() => setSaveState("idle"), 2000);
-      if (isModal) {
-        lastSavedSnapshotRef.current = JSON.stringify({ quote, signatureDataUrl });
-        setDirty(false);
-      }
+      setTimeout(() => setSaveState((state) => state === "saved" ? "idle" : state), 2000);
       return savedId;
     } catch (saveError) {
       const reason = saveError instanceof Error ? saveError.message : "계약서를 저장하지 못했습니다.";
@@ -773,52 +746,51 @@ export default function ContractBuilder({
       setSaveFailureReason(reason);
       setSaveState("error");
       setAutosaveStatus("error");
-      setTimeout(() => setSaveState("idle"), 3000);
       return null;
     }
   };
 
-  useSaveShortcut(handleSave);
+  const handleSave = (): Promise<string | null> => {
+    if (!quote || editLock) return Promise.resolve(contractId);
+    const previous = pendingSaveRef.current;
+    if (previous?.snapshot === documentSnapshot) return previous.task;
+    if (!previous && contractId && savedSnapshotRef.current === documentSnapshot) return Promise.resolve(contractId);
 
-  // ── Workspace Modal 전용 동작 (mode==="modal"일 때만 개입) ──
+    const task = (async () => {
+      const previousId = await previous?.task;
+      if (previous && !previousId) return null;
+      return persistDraft(quote, documentSnapshot, previousId ?? contractId);
+    })();
+    pendingSaveRef.current = { snapshot: documentSnapshot, task };
+    void task.then(() => {
+      if (pendingSaveRef.current?.task === task) pendingSaveRef.current = null;
+    });
+    return task;
+  };
 
-  // dirty 추적: quote/signatureDataUrl 스냅샷을 마지막 저장본과 비교한다.
+  useSaveShortcut(handleSave, !editLock);
+
   useEffect(() => {
-    if (!isModal) return;
-    const snapshot = JSON.stringify({ quote, signatureDataUrl });
-    setDirty(snapshot !== lastSavedSnapshotRef.current);
-  }, [isModal, quote, signatureDataUrl]);
-
-  // 자동저장: dirty가 1000ms 유지되면 handleSave()를 그대로 재사용해 저장한다.
-  useEffect(() => {
-    if (!isModal || !dirty || !quote) return;
-    const timer = setTimeout(() => {
-      setAutosaveStatus("saving");
-      const savePromise = handleSave().then((saved) => {
-        setAutosaveStatus(saved ? "saved" : "error");
-        return saved;
-      });
-      pendingSaveRef.current = savePromise;
-    }, 1000);
+    if (!dirty) return;
+    const timer = setTimeout(() => void handleSave(), 1000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModal, dirty, quote, signatureDataUrl]);
+  }, [dirty, documentSnapshot]);
 
-  // 닫기 정책: 진행 중인 자동저장이 있으면 먼저 기다리고, 저장 안 된 변경사항이 남아있으면
-  // 확인창을, 없으면 바로 닫는다.
-  const handleModalClose = async () => {
-    if (!isModal) return;
-    if (pendingSaveRef.current) await pendingSaveRef.current;
-    const stillDirty = JSON.stringify({ quote, signatureDataUrl }) !== lastSavedSnapshotRef.current;
-    if (!stillDirty) { onClose?.(); return; }
-    setCloseConfirmOpen(true);
-  };
   useEffect(() => {
-    if (!isModal) return;
-    registerRequestClose?.(handleModalClose);
-    return () => registerRequestClose?.(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModal, registerRequestClose, dirty]);
+    if (!isModal || !registerRequestClose) return;
+    registerRequestClose?.(async () => {
+      if (pendingSaveRef.current) await pendingSaveRef.current.task;
+      if (editLock || latestSnapshotRef.current === savedSnapshotRef.current) onClose?.();
+      else setCloseConfirmOpen(true);
+    });
+    return () => registerRequestClose(null);
+  }, [isModal, registerRequestClose, onClose, editLock]);
+
+  const saveStatusText = autosaveStatus === "error" ? saveFailureNotice
+    : autosaveStatus === "saving" ? "저장 중..."
+    : dirty ? "저장하지 않은 변경사항이 있습니다."
+    : autosaveStatus === "saved" ? "저장됨" : "";
 
   const iS: React.CSSProperties = {
     width: "100%", border: `1px solid ${C.border}`, borderRadius: 8,
@@ -847,13 +819,13 @@ export default function ContractBuilder({
   return (
     <>
     <div
-      className={`contract-app${brand === "jakeimage" ? " contract-app--jakeimage" : ""}`}
+      className={`contract-app ${styles.window}${brand === "jakeimage" ? " contract-app--jakeimage" : ""}`}
       style={isModal ? { width: "100%", height: "100%", minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" } : { minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}
     >
 
       {isModal ? (
         <div style={{ padding: "8px 20px", fontSize: 11.5, fontWeight: 700, color: autosaveStatus === "error" ? "#DC2626" : "#5a7470" }}>
-          {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
+          {saveStatusText}
         </div>
       ) : null}
 
@@ -872,7 +844,7 @@ export default function ContractBuilder({
                 ← 견적서로
               </button>
             )}
-            <button onClick={handleSave} disabled={saveState === "saving"} className="pc-btn pc-btn--sm"
+            <button onClick={handleSave} disabled={saveState === "saving" || !!editLock} className="pc-btn pc-btn--sm"
               style={{
                 borderColor: saveState === "saved" ? "#22C55E" : saveState === "error" ? C.orange : undefined,
                 color: saveState === "saved" ? "#16a34a" : saveState === "error" ? C.orange : undefined,
@@ -932,26 +904,22 @@ export default function ContractBuilder({
         );
       })()}
 
-      <div className="pc-mobile-stack" style={{ maxWidth: 1240, margin: "0 auto", padding: "24px 20px", display: "grid",
-                    gridTemplateColumns: "minmax(0, 1fr) 300px", gap: 20, alignItems: "start" }}>
+      <div className={styles.workspace}>
 
         {/* 계약서 미리보기 */}
-        <div className="pc-card">
+        <div className={`pc-card ${styles.preview}`}>
           <div style={{ background: C.mint, padding: "12px 20px", borderBottom: `1px solid ${C.border}`,
                          display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>계약서 미리보기</div>
             <div style={{ fontSize: 11, color: C.muted }}>미리보기 내용 그대로 PDF 생성</div>
           </div>
-          <div style={{ padding: 16, background: "#F8FAFA", overflowX: "auto" }}>
-            <iframe ref={previewFrameRef} srcDoc={contractHtml} style={{ width: 840, minWidth: 840, height: 860,
-                                                     border: `1px solid ${C.border}`,
-                                                     borderRadius: 8, background: "#fff" }}
-                    title="계약서 미리보기"/>
-          </div>
+          <ContractDocumentPreview html={contractHtml} />
         </div>
 
         {/* 오른쪽: 액션 패널 */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 70 }}>
+        <div className={styles.sidePanel}>
+          <ContractTermsEditor brand={brand} quote={quote} defaultDepositRate={effectiveDepositRate}
+            editLock={editLock} onChange={changeQuote} />
 
           {/* 견적 요약 */}
           <div style={{ background: C.teal, borderRadius: 14, padding: "16px 18px", color: "#fff" }}>
@@ -979,35 +947,35 @@ export default function ContractBuilder({
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 3 }}>
                   {cfg.entityLabel}
                 </label>
-                <input value={quote.hospitalName} onChange={e => updateQuote("hospitalName", e.target.value)}
+                <input value={quote.hospitalName} readOnly={!!editLock} onChange={e => updateQuote("hospitalName", e.target.value)}
                   placeholder={cfg.label} style={iS}/>
               </div>
               <div>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 3 }}>
                   {cfg.directorLabel}
                 </label>
-                <input value={quote.contactName} onChange={e => updateQuote("contactName", e.target.value)}
+                <input value={quote.contactName} readOnly={!!editLock} onChange={e => updateQuote("contactName", e.target.value)}
                   placeholder="정연호" style={iS}/>
               </div>
               <div>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 3 }}>
                   사업자번호
                 </label>
-                <input value={quote.businessNumber || ""} onChange={e => updateQuote("businessNumber", e.target.value)}
+                <input value={quote.businessNumber || ""} readOnly={!!editLock} onChange={e => updateQuote("businessNumber", e.target.value)}
                   placeholder="000-00-00000" style={iS}/>
               </div>
               <div>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 3 }}>
                   연락처
                 </label>
-                <input value={quote.phone} onChange={e => updateQuote("phone", e.target.value)}
+                <input value={quote.phone} readOnly={!!editLock} onChange={e => updateQuote("phone", e.target.value)}
                   placeholder="010-0000-0000" style={iS}/>
               </div>
               <div>
                 <label style={{ fontSize: 10, fontWeight: 700, color: C.muted, display: "block", marginBottom: 3 }}>
                   이메일
                 </label>
-                <input value={quote.email} onChange={e => updateQuote("email", e.target.value)}
+                <input value={quote.email} readOnly={!!editLock} onChange={e => updateQuote("email", e.target.value)}
                   placeholder={cfg.emailPlaceholder} style={iS}/>
               </div>
             </div>
@@ -1017,7 +985,7 @@ export default function ContractBuilder({
           <div className="pc-card pc-card--padded">
             <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 8 }}>✍️ {cfg.label} 서명</div>
             <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6, marginBottom: 10 }}>
-              아래 칸에 직접 서명하면 계약서와 PDF에 바로 반영됩니다.
+              {editLock || "아래 칸에 직접 서명하면 계약서와 PDF에 바로 반영됩니다."}
             </div>
             <canvas
               ref={signatureCanvasRef}
@@ -1041,6 +1009,7 @@ export default function ContractBuilder({
             <button
               type="button"
               onClick={clearSignature}
+              disabled={!!editLock}
               className="pc-btn pc-btn--secondary pc-btn--sm"
               style={{ width: "100%", marginTop: 8 }}
             >
@@ -1105,9 +1074,9 @@ export default function ContractBuilder({
             </div>
           ) : null}
           <ActionBar
-            status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
+            status={saveStatusText}
             actions={[
-              { key: "save", label: saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : "저장 (⌘S)", onClick: () => void handleSave(), disabled: saveState === "saving" },
+              { key: "save", label: saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : "저장 (⌘S)", onClick: () => void handleSave(), disabled: saveState === "saving" || !!editLock },
               { key: "download", label: pdfGenerating ? "PDF 생성 중..." : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), disabled: pdfGenerating },
               { key: "complete", label: contractCoreCompleted ? "✓ 최종완료됨" : completeState === "completing" ? "완료 처리 중..." : "최종완료", onClick: () => void completeContractStep(), disabled: completeState === "completing" || contractCoreCompleted },
               { key: "publish", label: publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨" : "포털 공개", onClick: () => void publishToPortal(), disabled: publishState === "publishing", variant: "primary" },

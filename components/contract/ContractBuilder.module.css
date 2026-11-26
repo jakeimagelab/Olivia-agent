@@ -1,0 +1,156 @@
+.window {
+  container: contract-window / inline-size;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+  align-items: start;
+  gap: 20px;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+.preview {
+  min-width: 0;
+  position: sticky;
+  top: 12px;
+}
+
+.previewSurface {
+  padding: 12px;
+  background: var(--ui2-sunk);
+}
+
+.previewViewport {
+  overflow: hidden;
+  position: relative;
+  height: min(690px, 67vh);
+  border: 1px solid var(--ui2-line);
+  border-radius: 8px;
+}
+
+.previewFrame {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 836px;
+  height: 100%;
+  border: 0;
+  background: white;
+  transform-origin: top left;
+}
+
+.sidePanel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.terms {
+  display: grid;
+  gap: 12px;
+}
+
+.terms h2 {
+  color: var(--ui2-green);
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.termsFieldset {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ui2-text);
+  min-width: 0;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--ui2-line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ui2-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.field :is(input, textarea):focus-visible,
+.clauses summary:focus-visible {
+  outline: 2px solid var(--ui2-green);
+  outline-offset: 2px;
+}
+
+.clauses {
+  border-top: 1px solid var(--ui2-line);
+  padding-top: 8px;
+}
+
+.clauses summary {
+  padding: 6px 0;
+  color: var(--ui2-green);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.clause {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+}
+
+.restore {
+  justify-self: end;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ui2-green);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.locked {
+  margin: 0;
+  color: var(--ui2-dim);
+  font-size: 12px;
+}
+
+@container contract-window (max-width: 740px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .preview {
+    position: static;
+  }
+
+  .previewViewport {
+    height: min(420px, 55vh);
+  }
+}

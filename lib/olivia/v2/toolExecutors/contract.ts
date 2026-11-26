@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { computeContractDeposit } from "@/lib/contract/computeContractDeposit";
+import { getContractEditLock } from "@/lib/contract/contractEditLock";
 import { requireClientTarget } from "@/lib/core/context/clientTarget";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text, activeResource, latestResource } from "./common";
@@ -19,7 +20,8 @@ async function loadContractRow(id: string) {
 
 async function saveContractRow(id: string, data: Record<string, unknown>) {
   const db = getSupabaseAdmin();
-  const { data: updated, error } = await db.from("contracts").update(data).eq("id", id).select("*").single();
+  const { data: updated, error } = await db.from("contracts")
+    .update({ ...data, updated_at: new Date().toISOString() }).eq("id", id).select("*").single();
   if (error || !updated) throw new Error("계약서를 저장하지 못했어요.");
   return updated as Record<string, unknown>;
 }
@@ -119,6 +121,8 @@ export async function executeContractTool(
   if (name === "update_contract_terms") {
     const resourceId = activeResource(context, "contract");
     const contract = await loadContractRow(resourceId);
+    const editLock = await getContractEditLock(db, { id: resourceId, status: contract.status, workflow_run_id: contract.workflow_run_id });
+    if (editLock) throw new Error(editLock);
     const patch: Record<string, unknown> = {};
     let depositRate: number | undefined;
     if (input.depositRate != null) {
