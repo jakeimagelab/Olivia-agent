@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FolderOpen } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
 import { useDocumentPortalEditor } from "@/components/document-mail/DocumentPortalEditorContext";
 import { documentPortalHref } from "@/lib/document-mail/portal";
 import { createMailingDraft } from "@/lib/mailingQueue";
@@ -80,7 +79,6 @@ export default function ContractBuilder({
   const isModal = mode === "modal";
   const isDesktopWindow = useDesktopWindowMode() && isModal;
   const router = useRouter();
-  const launchDesktopApp = useDesktopAppLauncher();
   const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   const isSigningRef = useRef(false);
   const [quote,      setQuote]      = useState<QuoteData | null>(null);
@@ -793,9 +791,7 @@ export default function ContractBuilder({
       const id = await handleSave();
       if (!id) return;
       const anchor = sourceQuoteRecordId ? { kind: "quote" as const, id: sourceQuoteRecordId } : { kind: "contract" as const, id };
-      const href = documentPortalHref(anchor, "contract", id);
-      if (isDesktopWindow) launchDesktopApp(href, quote?.hospitalName);
-      else router.push(href);
+      router.push(documentPortalHref(anchor, "contract", id));
     } finally {
       setOpeningPortal(false);
     }

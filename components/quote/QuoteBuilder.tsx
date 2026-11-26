@@ -17,7 +17,6 @@ import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
-import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
 import { QuoteStoreScope, quoteFormSnapshot, useQuoteFormStore, useQuoteStoreApi } from "@/lib/store/useQuoteStore";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
@@ -327,7 +326,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const isDesktopWindow = isModal && isDesktopWindowMode;
   const activeDesktopWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const canPublishOliviaContext = !isDesktopWindow || activeDesktopWindowId === "quote";
-  const launchDesktopApp = useDesktopAppLauncher();
   const router = useRouter();
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
   const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
@@ -1297,14 +1295,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       const alreadySaved = currentId && quoteFormSnapshot(quoteStore.getState()) === lastSavedFormStateRef.current;
       const saved = !saveCurrent ? data : alreadySaved ? { ...data, id: currentId } : await saveRecentQuote(data);
       if (!saved?.id) return;
-      const href = documentPortalHref({ kind: "quote", id: saved.id }, tab);
-      if (isDesktopWindow) {
-        launchDesktopApp(href, saved.hospitalName, {
-          clientId: saved.clientId ?? undefined, workflowRunId: saved.workflowRunId ?? undefined,
-        });
-      } else {
-        router.push(href);
-      }
+      router.push(documentPortalHref({ kind: "quote", id: saved.id }, tab));
     } finally {
       setOpeningPortal(false);
     }

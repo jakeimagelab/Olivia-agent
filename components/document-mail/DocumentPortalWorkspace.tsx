@@ -22,12 +22,12 @@ function EditorLoading() {
   return <p className={styles.workspaceMessage} role="status">문서를 불러오는 중…</p>;
 }
 
-export default function DocumentPortalWorkspace({ target, embedded = false }: { target: DocumentPortalTarget; embedded?: boolean }) {
+export default function DocumentPortalWorkspace({ target }: { target: DocumentPortalTarget }) {
   const { anchor } = target;
-  return <DocumentPortal key={`${anchor.kind}:${anchor.id}`} target={target} embedded={embedded} />;
+  return <DocumentPortal key={`${anchor.kind}:${anchor.id}`} target={target} />;
 }
 
-function DocumentPortal({ target, embedded }: { target: DocumentPortalTarget; embedded: boolean }) {
+function DocumentPortal({ target }: { target: DocumentPortalTarget }) {
   const { anchor } = target;
   const { kind, id } = anchor;
   const [tab, setTab] = useState(target.tab);
@@ -97,10 +97,10 @@ function DocumentPortal({ target, embedded }: { target: DocumentPortalTarget; em
   const activeStatement = statements.find((document) => document.id === (kind === "statement" ? id : target.documentId)) ?? statements[0];
   const workspaceTitle = quote?.title || preview?.customerName;
 
-  return <section className={styles.workspace} data-embedded={embedded || undefined} aria-label="문서 포털">
+  return <section className={styles.workspace} aria-label="문서 포털">
     <header className={styles.workspaceHeader}>
       <div className={styles.workspaceTitle}>
-        {!embedded && <a className={styles.iconButton} href={kind === "statement" ? (quote ? `/quote?resourceId=${quote.id}` : "/quote") : `/${kind}?resourceId=${id}`} aria-label="문서 포털 나가기"><ArrowLeft size={17} /></a>}
+        <a className={styles.iconButton} href={kind === "statement" ? (quote ? `/quote?resourceId=${quote.id}` : "/quote") : `/${kind}?resourceId=${id}`} aria-label="문서 포털 나가기"><ArrowLeft size={17} /></a>
         <h1>문서 포털</h1>
         {workspaceTitle && <span title={workspaceTitle}>{workspaceTitle}</span>}
       </div>

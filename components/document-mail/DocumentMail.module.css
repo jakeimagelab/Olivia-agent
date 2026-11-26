@@ -9,8 +9,6 @@
   color: var(--ui2-text);
 }
 
-.workspace[data-embedded] { height: 100%; }
-
 .workspaceHeader,
 .workspaceTitle,
 .tabs {
