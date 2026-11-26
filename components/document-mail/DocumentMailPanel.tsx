@@ -93,7 +93,7 @@ export default function DocumentMailPanel({ anchor, preview, preferredContractId
     <form className={styles.form} onSubmit={(event) => void submit(event)}>
       <label className={styles.field}>받는 메일 주소<input name="to" type="email" defaultValue={preview.recipient} maxLength={254} required readOnly={sending} /></label>
       <label className={styles.field}>제목<input name="subject" defaultValue={preview.subject} maxLength={200} required readOnly={sending} /></label>
-      <label className={styles.field}>내용<textarea name="message" defaultValue={preview.message} rows={6} maxLength={5000} required readOnly={sending} /></label>
+      <label className={styles.field}>내용<textarea name="message" defaultValue={preview.message} rows={4} maxLength={5000} required readOnly={sending} /></label>
       <fieldset className={styles.selection} disabled={sending}>
         <legend>함께 보낼 문서</legend>
         {KINDS.map((kind) => {

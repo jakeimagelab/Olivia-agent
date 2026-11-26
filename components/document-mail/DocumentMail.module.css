@@ -1,37 +1,103 @@
 .workspace {
+  min-width: 0;
+  min-height: 0;
+  container: document-portal / inline-size;
+}
+
+.workspace[data-fill] { height: 100%; }
+.workspace[data-standalone] { height: 100dvh; background: var(--ui2-bg); }
+
+.workspaceGrid {
+  --panel-width: clamp(310px, 31cqw, 420px);
+  --panel-motion: 340ms var(--v3-ease, cubic-bezier(.22, 1, .36, 1));
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0px);
+  min-width: 0;
+  min-height: 0;
+  overflow: clip;
+  isolation: isolate;
+  transition: grid-template-columns var(--panel-motion);
+}
+
+.workspace[data-fill] .workspaceGrid {
+  height: 100%;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.workspaceGrid[data-open] { grid-template-columns: minmax(0, 1fr) minmax(0, var(--panel-width)); }
+
+.document {
+  grid-row: 1;
+  grid-column: 1;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  min-height: 0;
   min-width: 0;
-  container: document-portal / inline-size;
-  background: var(--ui2-bg);
-  color: var(--ui2-text);
+  min-height: 0;
+  overflow: auto;
+  isolation: isolate;
 }
+
+.document[hidden] { display: none; }
+.document > :global(main) { flex: 1; min-width: 0; }
+
+.drawerSlot {
+  grid-row: 1;
+  grid-column: 2;
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear 340ms;
+}
+
+.drawer {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  width: var(--panel-width);
+  border-left: 1px solid var(--ui2-line);
+  background: var(--ui2-card);
+  color: var(--ui2-text);
+  opacity: 0;
+  transform: translateX(100%);
+  transition: transform var(--panel-motion), opacity 180ms ease;
+}
+
+.workspaceGrid[data-open] .drawerSlot { visibility: visible; transition-delay: 0s; }
+.workspaceGrid[data-open] .drawer { opacity: 1; transform: none; }
 
 .workspaceHeader,
 .workspaceTitle,
-.tabs {
+.tabs,
+.editorActions {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
 
-.workspaceHeader {
+.workspaceHeader,
+.editorActions {
   justify-content: space-between;
-  padding: 9px 16px;
+  flex: none;
+  padding: 10px 16px;
   background: var(--ui2-card);
   border-bottom: 1px solid var(--ui2-line);
 }
 
-.workspaceTitle h1 { margin: 0; color: var(--ui2-green); font-size: 17px; font-weight: 650; white-space: nowrap; }
-.workspaceTitle span { color: var(--ui2-dim); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspaceTitle { align-items: flex-start; flex-direction: column; gap: 3px; }
+.workspaceTitle h2 { margin: 0; color: var(--ui2-green); font-size: 16px; font-weight: 600; }
+.workspaceTitle span { max-width: 100%; color: var(--ui2-dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editorActions { justify-content: flex-end; }
 
 .tabs {
-  gap: 18px;
+  flex: none;
+  gap: 16px;
   padding-inline: 16px;
-  background: var(--ui2-card);
   border-bottom: 1px solid var(--ui2-line);
 }
 
@@ -49,36 +115,25 @@
 
 .tabs button[aria-current] { border-bottom-color: var(--ui2-green); color: var(--ui2-green); }
 .tabs button:disabled { cursor: default; opacity: .56; }
-.workspace :is(button, a, select):focus-visible { outline: 2px solid var(--ui2-green); outline-offset: -2px; }
-
-.workspaceGrid {
-  flex: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(280px, 28%, 392px);
-  min-height: 0;
-}
-
-.document { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
-.document > :global(main) { flex: 1; min-width: 0; }
-.contractChooser { padding: 10px 16px; background: var(--ui2-card); border-bottom: 1px solid var(--ui2-line); }
-.workspaceMessage { margin: 0; padding: 20px; color: var(--ui2-dim); font-size: 14px; }
-.workspaceMessage p { margin: 0 0 12px; }
-.workspaceError { padding: 8px 16px; color: var(--ui2-risk); font-size: 13px; }
-.workspaceError button { margin-inline-start: 8px; }
-.mobileMail { display: none; }
+.drawer :is(button, a, select):focus-visible { outline: 2px solid var(--ui2-green); outline-offset: -2px; }
 
 .mailRegion {
+  flex: 1;
   min-width: 0;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  background: var(--ui2-card);
-  border-left: 1px solid var(--ui2-line);
 }
 
+.contractChooser { padding: 10px 16px; background: var(--ui2-card); border-bottom: 1px solid var(--ui2-line); }
+.workspaceMessage,
+.workspaceError { margin: 0; padding: 16px; font-size: 13px; color: var(--ui2-dim); }
+.workspaceMessage p,
+.workspaceError p { margin: 0 0 10px; }
+.workspaceError { color: var(--ui2-risk); }
+
 .panel { padding: 16px 18px max(18px, env(safe-area-inset-bottom)); }
-.iconButton,
-.mobileMail {
+.iconButton {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--ui2-line);
@@ -108,7 +163,7 @@
 
 .form {
   display: grid;
-  gap: 13px;
+  gap: 11px;
   margin-top: 16px;
 }
 
@@ -194,6 +249,13 @@
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.panel .actions {
+  position: sticky;
+  bottom: 0;
+  padding-block: 10px;
+  background: var(--ui2-card);
 }
 
 .button {
@@ -285,11 +347,18 @@
   .row .actions { grid-column: 2; }
 }
 
-@container document-portal (max-width: 920px) {
-  .workspaceTitle span { display: none; }
-  .mobileMail { display: inline-flex; flex: 0 0 auto; min-height: 36px; padding: 6px 10px; font-size: 13px; font-weight: 600; }
-  .workspaceGrid { grid-template-columns: minmax(0, 1fr); }
-  .mailRegion { display: none; border-left: 0; }
-  .workspaceGrid[data-mail-visible] .document { display: none; }
-  .workspaceGrid[data-mail-visible] .mailRegion { display: block; }
+@container document-portal (max-width: 1060px) {
+  .workspaceGrid { --panel-width: min(420px, 100cqw); }
+  .workspaceGrid[data-open] { grid-template-columns: minmax(0, 1fr) minmax(0, 0px); }
+  .drawerSlot { position: absolute; inset: 0 0 0 auto; width: var(--panel-width); pointer-events: none; }
+  .workspaceGrid[data-open] .drawerSlot { pointer-events: auto; }
+  .workspaceGrid[data-page] .drawerSlot { position: fixed; width: min(420px, 100dvw); }
+}
+
+@container document-portal (max-width: 500px) {
+  .panel .actions { justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspaceGrid, .drawerSlot, .drawer { transition: none; }
 }

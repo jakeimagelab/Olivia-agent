@@ -17,11 +17,16 @@ type SavedQuote = {
 
 const amountFormatter = new Intl.NumberFormat("ko-KR");
 
-export default function SavedQuotePicker({ purpose, onChoose, onClose }: {
-  purpose: "edit" | "portal";
+export default function SavedQuotePicker({ onChoose, onClose }: {
   onChoose: (id: string) => void;
   onClose: () => void;
 }) {
+  return <Modal open onClose={onClose} title="저장된 견적서 불러오기" width={574}>
+    <SavedQuoteList onChoose={onChoose} autoFocus />
+  </Modal>;
+}
+
+export function SavedQuoteList({ onChoose, autoFocus }: { onChoose: (id: string) => void; autoFocus?: boolean }) {
   const [query, setQuery] = useState("");
   const [quotes, setQuotes] = useState<SavedQuote[] | null>(null);
   const [error, setError] = useState("");
@@ -49,10 +54,10 @@ export default function SavedQuotePicker({ purpose, onChoose, onClose }: {
   const matches = quotes?.filter((quote) => !keyword || fuzzyIncludes(`${quote.hospital_name ?? ""} ${quote.title ?? ""} ${quote.quote_number ?? ""}`, keyword));
 
   return (
-    <Modal open onClose={onClose} title={purpose === "portal" ? "문서 포털에서 열 견적 선택" : "저장된 견적서 불러오기"} width={574}>
+    <>
       <label className="quote-picker-search">
         <Search size={16} aria-hidden />
-        <input autoFocus aria-label="최근 견적서 검색" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="고객명, 제목 또는 견적번호" />
+        <input autoFocus={autoFocus} aria-label="최근 견적서 검색" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="고객명, 제목 또는 견적번호" />
       </label>
       {error ? <div className="quote-picker-message" role="alert">
         <span>{error}</span>
@@ -74,6 +79,6 @@ export default function SavedQuotePicker({ purpose, onChoose, onClose }: {
         </ul> : <p className="quote-picker-message" role="status">
           {keyword ? "최근 견적서에서 검색 결과를 찾지 못했습니다." : "견적서를 작성해 임시저장하면 이곳에서 열 수 있습니다."}
         </p>}
-    </Modal>
+    </>
   );
 }

@@ -1,11 +1,10 @@
 "use client";
 
 import type { ReactElement, ReactNode } from "react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
-import { useDocumentPortalEditor } from "@/components/document-mail/DocumentPortalEditorContext";
-import { documentPortalHref } from "@/lib/document-mail/portal";
+import { DocumentPortalEditorContext, useDocumentPortalEditor } from "@/components/document-mail/DocumentPortalEditorContext";
+import DocumentPortalWorkspace from "@/components/document-mail/DocumentPortalWorkspace";
 import type { DocumentMailKind } from "@/lib/document-mail/shared";
 import { isPcrmUuid } from "@/lib/pcrm/validation";
 import GlobalHeader from "@/components/GlobalHeader";
@@ -329,8 +328,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const isDesktopWindowMode = useDesktopWindowMode();
   const isDesktopWindow = isModal && isDesktopWindowMode;
   const activeDesktopWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
-  const canPublishOliviaContext = !isDesktopWindow || activeDesktopWindowId === "quote";
-  const router = useRouter();
+  const documentPortal = useContext(DocumentPortalEditorContext);
+  const sidebar = documentPortal?.sidebar;
+  const canPublishOliviaContext = documentPortal?.active !== false && (!isDesktopWindow || activeDesktopWindowId === "quote");
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
   const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
   const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
@@ -835,6 +835,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     clientPrefillAbortRef.current?.abort();
     clientPrefillTokenRef.current += 1;
     pendingSaveRef.current = null;
+    sidebar?.reset();
     const next = beginNewQuoteSession(editorSessionRef.current, {
       clientId: launchIntent === "client-new" ? clientId ?? null : null,
       workflowRunId: launchIntent === "client-new" ? workflowRunId ?? null : null,
@@ -966,6 +967,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       || dirty
       || hasMeaningfulQuoteContent(currentData);
     if (hasCurrentWork && !window.confirm("현재 견적 내용을 지우고 새 견적서를 작성할까요?")) return;
+    sidebar?.reset();
 
     // 초기화는 폼 값만 비우는 동작이 아니라 새 편집 세션으로 전환하는 동작이다.
     // 이전 문서/고객 요청과 대기 저장을 먼저 무효화해 새 견적에 늦게 반영되지 않게 한다.
@@ -1257,6 +1259,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
         documentTitle: data.title || data.hospitalName || "견적서",
       });
       setRecentQuoteMessage("선택한 견적서를 입력 폼에 불러왔습니다.");
+      return true;
     } catch (error) {
       if (controller.signal.aborted) return;
       const failed = failExistingQuoteLoad(editorSessionRef.current, loadingSession.requestToken, quoteId);
@@ -1270,70 +1273,84 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   };
 
   const [openingPortal, setOpeningPortal] = useState(false);
-  const [portalError, setPortalError] = useState("");
-  const [quotePickerPurpose, setQuotePickerPurpose] = useState<"edit" | "portal" | null>(null);
+  const [showSavedQuotePicker, setShowSavedQuotePicker] = useState(false);
 
-  const openSavedQuotePortal = (id: string, tab: DocumentMailKind = "quote") => {
-    if (!isPcrmUuid(id)) {
-      setPortalError("저장된 견적서의 문서 번호를 확인할 수 없습니다.");
+  const canOpenAnotherQuote = () => !quoteStore.getState().dirtyFields.size
+    || quoteFormSnapshot(quoteStore.getState()) === lastSavedFormStateRef.current
+    || window.confirm("현재 견적서에 저장하지 않은 변경사항이 있습니다. 다른 견적서를 열까요?");
+
+  const openSavedQuotePortal = async (id: string, tab: DocumentMailKind = "quote") => {
+    if (!sidebar || !isPcrmUuid(id)) return;
+    const content = { target: { anchor: { kind: "quote" as const, id }, tab } };
+    if (editorSessionRef.current.quoteId === id && editorSessionRef.current.loadState === "ready") {
+      sidebar.show(content);
       return;
     }
-    router.push(documentPortalHref({ kind: "quote", id }, tab));
-  };
-
-  const openQuotePortal = async () => {
-    if (openingPortal) return;
-    setPortalError("");
-    const data = buildContractQuoteData();
-    if (!data.quoteId && !hasMeaningfulQuoteContent(data)) {
-      setQuotePickerPurpose("portal");
-      return;
-    }
+    if (!canOpenAnotherQuote()) return;
+    sidebar.show({ busy: "견적서를 불러오는 중…" });
     setOpeningPortal(true);
-    const requestToken = editorSessionRef.current.requestToken;
     try {
-      await pendingSaveRef.current;
-      const session = editorSessionRef.current;
-      if (session.requestToken !== requestToken) return;
-      const currentSnapshot = quoteFormSnapshot(quoteStore.getState());
-      if (session.quoteId && currentSnapshot === lastSavedFormStateRef.current) {
-        openSavedQuotePortal(session.quoteId);
-        return;
+      if (await loadExistingQuote(id)) sidebar.update(content);
+      else if (editorSessionRef.current.quoteId === id && editorSessionRef.current.loadState === "error") {
+        sidebar.update({ error: "견적서를 불러오지 못했습니다.", retry: () => void openSavedQuotePortal(id, tab) });
       }
-      if (!hasMeaningfulQuoteContent(data)) {
-        setPortalError("병원명이나 견적 항목을 입력한 뒤 문서 포털을 열어 주세요.");
-        return;
-      }
-      if (data.formState && currentSnapshot !== quoteFormSnapshot(data.formState)) {
-        setPortalError("편집한 내용이 있습니다. 문서 포털을 다시 눌러 주세요.");
-        return;
-      }
-      const saved = await saveRecentQuote(data);
-      if (!saved?.id) {
-        setAutosaveStatus("error");
-        return;
-      }
-      if (quoteFormSnapshot(quoteStore.getState()) !== lastSavedFormStateRef.current) {
-        setPortalError("저장하지 않은 변경사항이 있습니다. 문서 포털을 다시 눌러 주세요.");
-        return;
-      }
-      openSavedQuotePortal(saved.id);
-    } catch (error) {
-      setPortalError(error instanceof Error ? error.message : "문서 포털을 열지 못했습니다. 다시 시도해 주세요.");
     } finally {
       setOpeningPortal(false);
     }
   };
 
-  const canOpenAnotherQuote = () => !hasPreviewContent
-    || quoteFormSnapshot(quoteStore.getState()) === lastSavedFormStateRef.current
-    || window.confirm("현재 견적서에 저장하지 않은 변경사항이 있습니다. 다른 견적서를 열까요?");
+  const prepareQuotePortal = async () => {
+    if (!sidebar || openingPortal) return;
+    const session = editorSessionRef.current;
+    if (session.quoteId && session.loadState === "ready") {
+      void openSavedQuotePortal(session.quoteId);
+      return;
+    }
+    const currentSnapshot = quoteFormSnapshot(quoteStore.getState());
+    const data = buildContractQuoteData();
+    if (!session.quoteId && !hasMeaningfulQuoteContent(data)) {
+      sidebar.show({ chooseQuote: (id) => void openSavedQuotePortal(id) });
+      return;
+    }
+    sidebar.show({ busy: "견적서를 저장하는 중…" });
+    setOpeningPortal(true);
+    const showError = (error: string) => sidebar.update({ error, retry: () => void prepareQuotePortal() });
+    try {
+      await pendingSaveRef.current;
+      if (editorSessionRef.current.requestToken !== session.requestToken) return;
+      if (quoteFormSnapshot(quoteStore.getState()) !== currentSnapshot) {
+        showError("편집한 내용이 있습니다. 다시 시도해 주세요.");
+        return;
+      }
+      const current = editorSessionRef.current;
+      const savedId = current.quoteId && currentSnapshot === lastSavedFormStateRef.current
+        ? current.quoteId
+        : (await saveRecentQuote(data))?.id;
+      if (editorSessionRef.current.requestToken !== session.requestToken) return;
+      if (!savedId) {
+        setAutosaveStatus("error");
+        showError("견적서를 저장하지 못했습니다. 화면 아래 저장 상태를 확인해 주세요.");
+        return;
+      }
+      if (quoteFormSnapshot(quoteStore.getState()) !== lastSavedFormStateRef.current) {
+        showError("저장하지 않은 변경사항이 있습니다. 다시 시도해 주세요.");
+        return;
+      }
+      sidebar.update({ target: { anchor: { kind: "quote", id: savedId }, tab: "quote" } });
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "문서 포털을 열지 못했습니다.");
+    } finally {
+      setOpeningPortal(false);
+    }
+  };
 
   const chooseSavedQuote = (id: string) => {
     if (id !== quoteDocumentId && !canOpenAnotherQuote()) return;
-    setQuotePickerPurpose(null);
-    if (quotePickerPurpose === "portal") openSavedQuotePortal(id);
-    else if (id !== quoteDocumentId) void loadExistingQuote(id);
+    setShowSavedQuotePicker(false);
+    if (id !== quoteDocumentId) {
+      sidebar?.reset();
+      void loadExistingQuote(id);
+    }
   };
 
   const publishQuoteToPortal = async (
@@ -1388,7 +1405,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const [manualSaving, setManualSaving] = useState(false);
   const handleManualSave = async () => {
     setManualSaving(true);
-    setPortalError("");
     setRecentQuoteMessage("");
     const data = buildContractQuoteData();
     const saved = await saveRecentQuote(data);
@@ -1401,8 +1417,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     setManualSaving(false);
     return Boolean(saved);
   };
-  useSaveShortcut(handleManualSave);
-  const documentPortal = useDocumentPortalEditor(async () => {
+  useSaveShortcut(handleManualSave, documentPortal?.active !== false);
+  useDocumentPortalEditor(async () => {
     if (editorSessionRef.current.loadState !== "ready") return true;
     await pendingSaveRef.current;
     if (quoteFormSnapshot(quoteStore.getState()) === lastSavedFormStateRef.current) return true;
@@ -1468,7 +1484,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   };
   const handleFinalComplete = async () => {
     setCompletingQuote(true);
-    setPortalError("");
     setRecentQuoteMessage("");
     const data = buildContractQuoteData();
     const saved = await saveRecentQuote(data);
@@ -1489,6 +1504,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     if (current.quoteId === resourceId && current.loadState === "ready") return;
     const currentRequest = documentLoadAbortRef.current;
     if (current.quoteId === resourceId && current.loadState === "loading" && currentRequest && !currentRequest.signal.aborted) return;
+    sidebar?.reset();
     void loadExistingQuote(resourceId, documentOnly ? { clientId, workflowRunId } : undefined);
     return () => documentLoadAbortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2248,7 +2264,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   if (documentOnly && !resourceId) {
     return <div className="quote-document-state">이 고객에게 연결된 견적서가 없습니다.</div>;
   }
-  if (documentLoading) {
+  if (documentLoading && !openingPortal) {
     return <div className="quote-document-state">이 고객의 견적서를 불러오는 중...</div>;
   }
   if (documentScopeError) {
@@ -2258,7 +2274,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   return (
     <>
     {isModal ? null : <GlobalHeader title="견적서 생성기" description="촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다." />}
-    <main className={`${isDesktopWindow ? "flex h-full min-h-0 flex-col overflow-hidden" : isModal ? "" : "min-h-screen"} text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`} style={isModal ? undefined : { background: "var(--mesh-bg)" }}>
+    <main className={`${isDesktopWindow ? "flex h-full min-h-0 flex-col overflow-hidden" : isModal ? "" : "min-h-screen"} text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`}
+      aria-busy={documentLoading || undefined} inert={documentLoading || undefined} style={isModal ? undefined : { background: "var(--mesh-bg)" }}>
       {isModal && linkedWorkflowRunId && !documentOnly ? (
         <div style={{ padding: "10px 20px 0" }}>
           <ActiveMissionBar workflowRunId={linkedWorkflowRunId} />
@@ -2891,6 +2908,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
                         className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d8d0c4] bg-white px-3 text-sm font-extrabold text-[var(--quote-ink)] transition hover:-translate-y-0.5 hover:border-[var(--quote-ink)]"
                         onClick={() => {
                           if (dirtyFields.size > 0 && !window.confirm("현재 입력한 내용이 최근 견적으로 바뀝니다. 계속할까요?")) return;
+                          sidebar?.reset();
                           void loadExistingQuote(item.id);
                         }}
                       >
@@ -2899,7 +2917,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
                       <button
                         type="button"
                         className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5"
-                        onClick={() => { if (item.id === quoteDocumentId || canOpenAnotherQuote()) openSavedQuotePortal(item.id, "contract"); }}
+                        onClick={() => void openSavedQuotePortal(item.id, "contract")}
                         disabled={openingPortal}
                       >
                         <FileText size={15} />
@@ -2971,13 +2989,14 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
               </div>}
               {!documentOnly && <Button icon={<FileSearch size={15} />} disabled={openingPortal} onClick={() => {
                 setShowDownloadMenu(false);
-                setPortalError("");
-                setQuotePickerPurpose("edit");
+                setShowSavedQuotePicker(true);
               }}>견적서 불러오기</Button>}
-              {!documentPortal && <Button variant="primary" icon={<FolderOpen size={15} />} disabled={openingPortal || manualSaving || completingQuote} onClick={() => {
+              {sidebar && <Button variant={sidebar.expanded ? "secondary" : "primary"} icon={<FolderOpen size={15} />}
+                aria-controls={sidebar.id} aria-expanded={sidebar.expanded} disabled={!sidebar.expanded && (openingPortal || manualSaving || completingQuote)} onClick={() => {
                 setShowDownloadMenu(false);
-                void openQuotePortal();
-              }}>{openingPortal ? "문서 준비 중…" : "문서 포털"}</Button>}
+                if (sidebar.expanded) sidebar.close();
+                else void prepareQuotePortal();
+              }}>문서 포털</Button>}
             </div>
           </header>
 
@@ -2993,7 +3012,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       </section>
 
       <div className="quote-footer">
-        {(portalError || autosaveStatus === "error") && <div className="quote-footer-error" role="alert">{portalError || saveFailureNotice}</div>}
+        {autosaveStatus === "error" && <div className="quote-footer-error" role="alert">{saveFailureNotice}</div>}
         {showDownloadMenu && <div className="quote-download-menu">
           <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}><Download size={15} /> PDF</button>
           <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}><FileSpreadsheet size={15} /> Excel</button>
@@ -3010,7 +3029,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
         />
       </div>
     </main>
-    {quotePickerPurpose && <SavedQuotePicker purpose={quotePickerPurpose} onChoose={chooseSavedQuote} onClose={() => setQuotePickerPurpose(null)} />}
+    {showSavedQuotePicker && <SavedQuotePicker onChoose={chooseSavedQuote} onClose={() => setShowSavedQuotePicker(false)} />}
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
         <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24, position: "relative" }}>
@@ -3040,9 +3059,11 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
 });
 
 const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function ScopedQuoteBuilder(props, ref) {
+  const portal = useContext(DocumentPortalEditorContext);
+  const editor = <QuoteBuilderInner {...props} ref={ref} />;
   return (
     <QuoteStoreScope isolated={props.mode === "modal" || Boolean(props.documentOnly)}>
-      <QuoteBuilderInner {...props} ref={ref} />
+      {portal ? editor : <DocumentPortalWorkspace primaryKind="quote" embedded={props.mode === "modal"}>{editor}</DocumentPortalWorkspace>}
     </QuoteStoreScope>
   );
 });

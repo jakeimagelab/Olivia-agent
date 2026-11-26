@@ -1,16 +1,16 @@
 "use client";
 import type { PointerEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FolderOpen } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useDocumentPortalEditor } from "@/components/document-mail/DocumentPortalEditorContext";
-import { documentPortalHref } from "@/lib/document-mail/portal";
+import { DocumentPortalEditorContext, useDocumentPortalEditor } from "@/components/document-mail/DocumentPortalEditorContext";
+import DocumentPortalWorkspace from "@/components/document-mail/DocumentPortalWorkspace";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
+import Button from "@/components/ui/Button";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
@@ -53,17 +53,7 @@ const quoteTaxLabel = (taxMode: QuoteData["taxMode"]) => (
   taxMode === "excluded" ? "부가세 제외" : taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)"
 );
 
-export default function ContractBuilder({
-  mode = "page",
-  documentOnly = false,
-  clientId: modalClientId,
-  workflowRunId: modalWorkflowRunId,
-  resourceId,
-  sourceQuoteId,
-  onClose,
-  onPublished,
-  registerRequestClose,
-}: {
+type ContractBuilderProps = {
   mode?: "page" | "modal";
   /** 고객관리에서 지정된 기존 계약서 한 건만 연다. */
   documentOnly?: boolean;
@@ -75,10 +65,32 @@ export default function ContractBuilder({
   onClose?: () => void;
   onPublished?: () => void;
   registerRequestClose?: (fn: (() => void) | null) => void;
-} = {}) {
+};
+
+export default function ContractBuilder(props: ContractBuilderProps = {}) {
+  const portal = useContext(DocumentPortalEditorContext);
+  const editor = <ContractEditor {...props} />;
+  return portal ? editor : <DocumentPortalWorkspace primaryKind="contract" embedded={props.mode === "modal"}>{editor}</DocumentPortalWorkspace>;
+}
+
+function ContractEditor({
+  mode = "page",
+  documentOnly = false,
+  clientId: modalClientId,
+  workflowRunId: modalWorkflowRunId,
+  resourceId,
+  sourceQuoteId,
+  onClose,
+  onPublished,
+  registerRequestClose,
+}: ContractBuilderProps) {
   const isModal = mode === "modal";
   const isDesktopWindow = useDesktopWindowMode() && isModal;
-  const router = useRouter();
+  const documentPortal = useContext(DocumentPortalEditorContext);
+  const sidebar = documentPortal?.sidebar;
+  const portalEditorActive = documentPortal?.active !== false;
+  const resetSidebar = sidebar?.reset;
+  useEffect(() => resetSidebar?.(), [modalClientId, modalWorkflowRunId, resetSidebar, resourceId, sourceQuoteId]);
   const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   const isSigningRef = useRef(false);
   const [quote,      setQuote]      = useState<QuoteData | null>(null);
@@ -159,6 +171,7 @@ export default function ContractBuilder({
   const editLock = loadedEditLock ?? (contractCoreCompleted || completeState === "done" ? "최종완료된 계약서입니다." : null);
   const dirty = Boolean(isModal && quote && !editLock && documentSnapshot !== savedSnapshot);
   useEffect(() => {
+    if (!portalEditorActive) return;
     const current = useOliviaContextStore.getState();
     if (current.activeWorkspace !== "contract" || current.activeResourceId !== contractDocumentId) {
       setOliviaWorkspace("contract", contractDocumentId);
@@ -169,9 +182,10 @@ export default function ContractBuilder({
         latest.setWorkspace(undefined, undefined);
       }
     };
-  }, [contractDocumentId, setOliviaWorkspace]);
+  }, [contractDocumentId, portalEditorActive, setOliviaWorkspace]);
 
   useEffect(() => {
+    if (!portalEditorActive) return;
     setOliviaCurrentDocument(
       contractDocumentId,
       "contract",
@@ -192,12 +206,13 @@ export default function ContractBuilder({
       canPublish: Boolean(contractDocumentId),
       canFinalize: canComplete,
     });
-  }, [brand, contractContextClientName, contractCoreCompleted, contractDocumentId, editLock, hasContractQuote, linkedWorkflowRunId, modalClientId, publishState, setOliviaCurrentDocument, setOliviaPageContext]);
+  }, [brand, contractContextClientName, contractCoreCompleted, contractDocumentId, editLock, hasContractQuote, linkedWorkflowRunId, modalClientId, portalEditorActive, publishState, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
+    if (!portalEditorActive) return;
     setOliviaCurrentDocumentTotal(quote?.totalAmount, dirty);
     return () => setOliviaCurrentDocumentTotal(undefined, undefined);
-  }, [quote?.totalAmount, dirty, setOliviaCurrentDocumentTotal]);
+  }, [quote?.totalAmount, dirty, portalEditorActive, setOliviaCurrentDocumentTotal]);
 
   useEffect(() => {
     if (!isModal || (!resourceId && !sourceQuoteId)) return;
@@ -779,25 +794,38 @@ export default function ContractBuilder({
     return task;
   };
 
-  const documentPortal = useDocumentPortalEditor(async () => {
-    if (!dirty || editLock) return true;
+  useDocumentPortalEditor(async () => {
+    if (editLock) return true;
     return Boolean(await handleSave());
   });
 
   const openContractPortal = async () => {
-    if (openingPortal) return;
+    if (!sidebar || openingPortal) return;
+    const content = (id: string) => ({
+      target: {
+        anchor: sourceQuoteRecordId ? { kind: "quote" as const, id: sourceQuoteRecordId } : { kind: "contract" as const, id },
+        tab: "contract" as const,
+        documentId: id,
+      },
+    });
+    if (contractId) {
+      sidebar.show(content(contractId));
+      return;
+    }
+    sidebar.show({ busy: "계약서를 준비하는 중…" });
     setOpeningPortal(true);
     try {
       const id = await handleSave();
-      if (!id) return;
-      const anchor = sourceQuoteRecordId ? { kind: "quote" as const, id: sourceQuoteRecordId } : { kind: "contract" as const, id };
-      router.push(documentPortalHref(anchor, "contract", id));
+      if (!id) throw new Error("계약서를 저장하지 못했습니다. 저장 상태를 확인해 주세요.");
+      sidebar.update(content(id));
+    } catch (cause) {
+      sidebar.update({ error: cause instanceof Error ? cause.message : "문서 포털을 열지 못했습니다.", retry: () => void openContractPortal() });
     } finally {
       setOpeningPortal(false);
     }
   };
 
-  useSaveShortcut(handleSave, !editLock);
+  useSaveShortcut(handleSave, !editLock && portalEditorActive);
 
   useEffect(() => {
     if (!dirty) return;
@@ -845,6 +873,9 @@ export default function ContractBuilder({
     ? computeContractDeposit(quote.totalAmount, quote.depositRate)
     : { depositAmount: quote.depositAmount, balanceAmount: quote.balanceAmount };
 
+  const portalButton = sidebar && <Button icon={<FolderOpen size={15} />} aria-controls={sidebar.id} aria-expanded={sidebar.expanded}
+    disabled={openingPortal && !sidebar.expanded} onClick={() => sidebar.expanded ? sidebar.close() : void openContractPortal()}>문서 포털</Button>;
+
   return (
     <>
     <div
@@ -880,9 +911,7 @@ export default function ContractBuilder({
               }}>
               {saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : saveState === "error" ? "✕ 저장 실패" : "저장 (⌘S)"}
             </button>
-            {!documentPortal && <button type="button" className="pc-btn pc-btn--secondary pc-btn--sm" onClick={() => void openContractPortal()} disabled={openingPortal}>
-              <FolderOpen size={15} /> {openingPortal ? "문서 준비 중…" : "문서 포털"}
-            </button>}
+            {portalButton}
             <div style={{ position: "relative" }}>
               <button onClick={() => setShowDownloadMenu((v) => !v)} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
                 {pdfGenerating ? "PDF 생성 중..." : "다운로드 ▾"}
@@ -941,9 +970,10 @@ export default function ContractBuilder({
         {/* 계약서 미리보기 */}
         <div className={`pc-card ${styles.preview}`}>
           <div style={{ background: C.mint, padding: "12px 20px", borderBottom: `1px solid ${C.border}`,
-                         display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                         display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>계약서 미리보기</div>
             <div style={{ fontSize: 11, color: C.muted }}>미리보기 내용 그대로 PDF 생성</div>
+            {isDesktopWindow && portalButton}
           </div>
           <ContractDocumentPreview html={contractHtml} />
         </div>
@@ -1072,7 +1102,7 @@ export default function ContractBuilder({
             </div>
           </div>
 
-          {!documentPortal && <div style={{ background: mailingQueued ? C.mint : "#F8FAFA", border: `1px solid ${mailingQueued ? C.teal : C.border}`, borderRadius: 14, padding: "14px 18px" }}>
+          {sidebar && !sidebar.expanded && <div style={{ background: mailingQueued ? C.mint : "#F8FAFA", border: `1px solid ${mailingQueued ? C.teal : C.border}`, borderRadius: 14, padding: "14px 18px" }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 6 }}>📬 올리비아 메일링</div>
             {mailingNotice ? (
               <div style={{ fontSize: 12, color: C.teal, fontWeight: 700 }}>{mailingNotice}</div>
@@ -1113,9 +1143,8 @@ export default function ContractBuilder({
             actions={[
               { key: "save", label: saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : "저장 (⌘S)", onClick: () => void handleSave(), disabled: saveState === "saving" || !!editLock },
               { key: "download", label: pdfGenerating ? "PDF 생성 중..." : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), disabled: pdfGenerating },
-              ...(!documentPortal ? [{ key: "portal", label: openingPortal ? "문서 준비 중…" : "문서 포털", onClick: () => void openContractPortal(), disabled: openingPortal, icon: <FolderOpen size={14} /> }] : []),
               { key: "complete", label: contractCoreCompleted ? "✓ 최종완료됨" : completeState === "completing" ? "완료 처리 중..." : "최종완료", onClick: () => void completeContractStep(), disabled: completeState === "completing" || contractCoreCompleted },
-              { key: "publish", label: publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨" : "포털 공개", onClick: () => void publishToPortal(), disabled: publishState === "publishing", variant: documentPortal ? "secondary" : "primary" },
+              { key: "publish", label: publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨" : "포털 공개", onClick: () => void publishToPortal(), disabled: publishState === "publishing", variant: !sidebar || sidebar.expanded ? "secondary" : "primary" },
             ]}
           />
         </div>
