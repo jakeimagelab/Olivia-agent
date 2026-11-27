@@ -7,6 +7,7 @@ import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import { SELECT_MATCH_RAW_EXTENSIONS } from "@/lib/selectMatch/nameParsing";
 import { copyOrMovePreservingMetadata } from "@/lib/selectMatch/node/preservedFileOperation";
 import {
+  assertRawIdentity,
   existingAllowedRoots,
   matchingXmp,
   readCaptureTimeMs,
@@ -199,6 +200,7 @@ export async function executeRemoteBridgeRawMatch(
       let xmpPath: string | null = null;
       try {
         const jpgSource = await resolveSourceFile(projectRoot, jpg.relativePath, "JPG 원본");
+        await assertRawIdentity(jpgSource, jpg.size, jpg.captureTimeMs);
         xmpPath = await matchingXmp(jpgSource);
         const operation = await copyOrMovePreservingMetadata({ source: jpgSource, destinationDirectory: deliveredDir, move: true });
         if (!operation.alreadyExisted) jpgMoved += 1;

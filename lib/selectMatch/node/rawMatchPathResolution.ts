@@ -13,13 +13,14 @@ import {
 import path from "node:path";
 
 import { resolvePhotoWorkPath } from "@/lib/person-select/sourceRoots";
-import { fileSystemEntryExists } from "@/lib/selectMatch/node/preservedFileOperation";
 import { parseCaptureTime } from "@/lib/selectMatch/captureTime";
 import type { LocalRawMatchRootRelation, RemoteRawMatchRootLocator } from "@/lib/selectMatch/remoteRawMatchTypes";
 
 const RAW_HEADER_BYTES = 4 * 1024 * 1024;
 const WORKER_ROOT_SEARCH_DEPTH = 4;
 const WORKER_ROOT_SEARCH_LIMIT = 50_000;
+
+export class RawMatchSourceMissingError extends Error {}
 
 function isInside(root: string, candidate: string): boolean {
   // macOS/SMB에서 동일한 한글 경로가 directory entry에서는 NFD,
@@ -71,24 +72,45 @@ async function resolveRoot(input: string, allowedRoots: readonly string[], label
 export async function resolveSourceFile(root: string, relativePath: string, label: string): Promise<string> {
   const candidate = path.resolve(root, safeRelativePath(relativePath, label));
   if (!isInside(root, candidate)) throw new Error(`${label}이 기준 폴더 밖입니다.`);
-  const canonical = await realpath(candidate).catch(() => {
-    throw new Error(`${label}을 찾지 못했습니다: ${relativePath}`);
+  const metadata = await lstat(candidate).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === "ENOENT") throw new RawMatchSourceMissingError(`${label}을 찾지 못했습니다: ${relativePath}`, { cause: error });
+    throw error;
   });
+  if (!metadata.isFile()) throw new Error(`${label}이 안전한 파일이 아닙니다.`);
+  const canonical = await realpath(candidate);
   if (!isInside(root, canonical)) throw new Error(`${label}이 기준 폴더 밖을 가리킵니다.`);
-  const metadata = await lstat(canonical);
-  if (metadata.isSymbolicLink() || !metadata.isFile()) throw new Error(`${label}이 안전한 파일이 아닙니다.`);
+  if (canonical.normalize("NFC") !== candidate.normalize("NFC")) throw new Error(`${label}이 다른 경로를 가리킵니다.`);
   return canonical;
 }
 
+async function findDestinationDirectory(root: string, relativePath: string, label: string, create: boolean): Promise<string | null> {
+  let directory = root;
+  for (const segment of safeRelativePath(relativePath, label).split(path.sep)) {
+    const entry = path.join(directory, segment);
+    let metadata = await lstat(entry).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    if (!metadata) {
+      if (!create) return null;
+      await mkdir(entry).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "EEXIST") throw error;
+      });
+      metadata = await lstat(entry);
+    }
+    if (!metadata.isDirectory()) throw new Error(`${label}이 안전한 폴더가 아닙니다.`);
+    directory = await realpath(entry);
+    if (!isInside(root, directory) || directory.normalize("NFC") !== entry.normalize("NFC")) {
+      throw new Error(`${label}이 다른 경로를 가리킵니다.`);
+    }
+  }
+  return directory;
+}
+
 export async function resolveDestinationDirectory(root: string, relativePath: string, label: string): Promise<string> {
-  const candidate = path.resolve(root, safeRelativePath(relativePath, label));
-  if (!isInside(root, candidate)) throw new Error(`${label}이 기준 폴더 밖입니다.`);
-  await mkdir(candidate, { recursive: true });
-  const canonical = await realpath(candidate);
-  if (!isInside(root, canonical)) throw new Error(`${label}이 기준 폴더 밖을 가리킵니다.`);
-  const metadata = await lstat(canonical);
-  if (metadata.isSymbolicLink() || !metadata.isDirectory()) throw new Error(`${label}이 안전한 폴더가 아닙니다.`);
-  return canonical;
+  const directory = await findDestinationDirectory(root, relativePath, label, true);
+  if (!directory) throw new Error(`${label}을 만들지 못했습니다.`);
+  return directory;
 }
 
 export async function resolveExistingDestinationDirectory(
@@ -96,14 +118,7 @@ export async function resolveExistingDestinationDirectory(
   relativePath: string,
   label: string,
 ): Promise<string | null> {
-  const candidate = path.resolve(root, safeRelativePath(relativePath, label));
-  if (!isInside(root, candidate)) throw new Error(`${label}이 기준 폴더 밖입니다.`);
-  if (!await fileSystemEntryExists(candidate)) return null;
-  const canonical = await realpath(candidate);
-  if (!isInside(root, canonical)) throw new Error(`${label}이 기준 폴더 밖을 가리킵니다.`);
-  const metadata = await lstat(canonical);
-  if (metadata.isSymbolicLink() || !metadata.isDirectory()) throw new Error(`${label}이 안전한 폴더가 아닙니다.`);
-  return canonical;
+  return findDestinationDirectory(root, relativePath, label, false);
 }
 
 export async function readCaptureTimeMs(filePath: string): Promise<number | null> {
@@ -187,7 +202,7 @@ async function searchMatchingRoots(
 }
 
 function normalizedFolderIdentity(value: string): string {
-  return value.normalize("NFC").trim().toLocaleLowerCase("en-US").replace(/-\d+$/u, "");
+  return value.normalize("NFC").trim().toLocaleLowerCase("en-US");
 }
 
 function normalizedPathParts(value: string): string[] {
@@ -198,12 +213,21 @@ function normalizedPathParts(value: string): string[] {
     .filter(Boolean);
 }
 
-function pathMatchesHint(candidate: string, relativePath?: string): boolean {
+function mountIdentity(value: string): string {
+  return value.replace(/-\d+$/u, "");
+}
+
+function pathMatchesHint(candidate: string, relativePath?: string, volumesRoot?: string): boolean {
   if (!relativePath?.trim()) return false;
   const candidateParts = normalizedPathParts(candidate);
   const hintParts = normalizedPathParts(relativePath);
   if (!hintParts.length || hintParts.length > candidateParts.length) return false;
-  return hintParts.every((part, index) => part === candidateParts[candidateParts.length - hintParts.length + index]);
+  const mountIndex = volumesRoot && isInside(volumesRoot, candidate) ? normalizedPathParts(volumesRoot).length : -1;
+  return hintParts.every((part, index) => {
+    const candidateIndex = candidateParts.length - hintParts.length + index;
+    const segment = candidateParts[candidateIndex];
+    return part === segment || (candidateIndex === mountIndex && mountIdentity(part) === mountIdentity(segment));
+  });
 }
 
 type WorkerRootCache = Record<string, string>;
@@ -269,10 +293,10 @@ export async function resolveWorkerRootByLocator(
   options: { cacheFilePath?: string; requirePathHint?: boolean } = {},
 ): Promise<string> {
   const canonicalAllowedRoots = await Promise.all(allowedRoots.map((root) => realpath(root)));
+  const volumesRoot = canonicalAllowedRoots.find((root) => path.basename(root) === "Volumes");
   const requestedPath = locator.relativePath?.trim();
   const requirePathHint = Boolean(options.requirePathHint && requestedPath);
   if (requestedPath?.startsWith("Volumes/")) {
-    const volumesRoot = canonicalAllowedRoots.find((root) => path.basename(root) === "Volumes");
     if (!volumesRoot) throw new Error("Mac Studio에서 연결된 저장소를 찾을 수 없습니다.");
     const selectedPath = path.join(volumesRoot, safeRelativePath(requestedPath.slice("Volumes/".length), label));
     const selected = await resolveRoot(selectedPath, canonicalAllowedRoots, label);
@@ -289,7 +313,7 @@ export async function resolveWorkerRootByLocator(
   if (cachedPath) {
     try {
       const canonical = await resolveRoot(cachedPath, canonicalAllowedRoots, label);
-      if ((!requirePathHint || pathMatchesHint(canonical, requestedPath))
+      if ((!requirePathHint || pathMatchesHint(canonical, requestedPath, volumesRoot))
         && await candidateMatchesSamples(canonical, samples)) return canonical;
     } catch {
       // 재마운트나 폴더 이동으로 무효화된 캐시는 아래 자동 탐색으로 교체한다.
@@ -307,7 +331,8 @@ export async function resolveWorkerRootByLocator(
     const canonicalKey = current.directory.normalize("NFC");
     if (visited.has(canonicalKey)) continue;
     visited.add(canonicalKey);
-    if (normalizedFolderIdentity(path.basename(current.directory)) === requestedName) {
+    const candidateName = normalizedFolderIdentity(path.basename(current.directory));
+    if (candidateName === requestedName || (volumesRoot === path.dirname(current.directory) && mountIdentity(candidateName) === mountIdentity(requestedName))) {
       nameCandidates.push(current.directory);
       if (await candidateMatchesSamples(current.directory, samples)) matchedCandidates.push(current.directory);
     }
@@ -324,7 +349,8 @@ export async function resolveWorkerRootByLocator(
     }
   }
 
-  const preferred = matchedCandidates.filter((candidate) => pathMatchesHint(candidate, locator.relativePath));
+  const exact = matchedCandidates.filter((candidate) => pathMatchesHint(candidate, requestedPath));
+  const preferred = exact.length ? exact : matchedCandidates.filter((candidate) => pathMatchesHint(candidate, requestedPath, volumesRoot));
   const resolved = preferred.length === 1
     ? preferred[0]
     : !requirePathHint && preferred.length === 0 && matchedCandidates.length === 1
@@ -448,8 +474,11 @@ export async function resolveWorkerRoot(
 export async function matchingXmp(jpgPath: string): Promise<string | null> {
   const directory = path.dirname(jpgPath);
   const basename = path.basename(jpgPath, path.extname(jpgPath)).normalize("NFC").toLocaleLowerCase("en-US");
-  const names = await readdir(directory);
-  const match = names.find((name) => path.extname(name).toLocaleLowerCase("en-US") === ".xmp"
-    && path.basename(name, path.extname(name)).normalize("NFC").toLocaleLowerCase("en-US") === basename);
-  return match ? path.join(directory, match) : null;
+  const matches = (await readdir(directory, { withFileTypes: true }))
+    .filter(({ name }) => path.extname(name).toLocaleLowerCase("en-US") === ".xmp"
+      && path.basename(name, path.extname(name)).normalize("NFC").toLocaleLowerCase("en-US") === basename);
+  if (matches.length > 1) throw new Error("같은 이름의 XMP가 여러 개 있습니다.");
+  const xmp = matches[0];
+  if (xmp && !xmp.isFile()) throw new Error("XMP가 안전한 파일이 아닙니다.");
+  return xmp ? path.join(directory, xmp.name) : null;
 }

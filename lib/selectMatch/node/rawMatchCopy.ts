@@ -1,7 +1,10 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import {
+  open,
   realpath,
-  writeFile,
+  rename,
+  rm,
 } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -13,13 +16,13 @@ import type {
 } from "@/lib/selectMatch/remoteRawMatch";
 import {
   copyOrMovePreservingMetadata,
-  fileSystemEntryExists as destinationExists,
   type PreservedOperationResult,
 } from "@/lib/selectMatch/node/preservedFileOperation";
 import {
   assertRawIdentity,
   existingAllowedRoots,
   matchingXmp,
+  RawMatchSourceMissingError,
   resolveDestinationDirectory,
   resolveExistingDestinationDirectory,
   resolveSourceFile,
@@ -66,6 +69,21 @@ function buildWorkerMatchLog(
       attributesByPath.get(row.jpgPath) ?? attributesByPath.get(row.rawPath) ?? "-",
     ]),
   ].map((columns) => columns.map(csvCell).join(",")).join("\r\n")}`;
+}
+
+async function writeWorkerMatchLog(logPath: string, csv: string): Promise<void> {
+  const temporaryPath = path.join(path.dirname(logPath), `.match-log-${randomUUID()}.tmp`);
+  const file = await open(temporaryPath, "wx");
+  try {
+    try {
+      await file.writeFile(csv, "utf8");
+    } finally {
+      await file.close();
+    }
+    await rename(temporaryPath, logPath);
+  } finally {
+    await rm(temporaryPath, { force: true });
+  }
 }
 
 export async function executeRemoteRawMatchCopy(
@@ -143,11 +161,11 @@ export async function executeRemoteRawMatchCopy(
     expectedSize: number,
     expectedCaptureTimeMs: number | null,
   ): Promise<string | null> => {
+    if (expectedCaptureTimeMs === null) return null;
     const destinationDirectory = await resolveExistingDestinationDirectory(root, relativeDestinationDirectory, "결과 폴더");
     if (!destinationDirectory) return null;
-    const destination = path.join(destinationDirectory, path.basename(relativeSourcePath));
-    if (!await destinationExists(destination)) return null;
     try {
+      const destination = await resolveSourceFile(destinationDirectory, path.basename(relativeSourcePath), "기존 결과 파일");
       await assertRawIdentity(destination, expectedSize, expectedCaptureTimeMs);
       return destination;
     } catch {
@@ -172,6 +190,7 @@ export async function executeRemoteRawMatchCopy(
           move: item.rawAction === "move",
         });
       } catch (error) {
+        if (item.rawAction !== "move" || !(error instanceof RawMatchSourceMissingError)) throw error;
         const completed = await existingCompletedDestination(
           rawRoot,
           item.rawPath,
@@ -216,22 +235,17 @@ export async function executeRemoteRawMatchCopy(
         let jpgSucceeded = false;
         let xmpSource: string | null = null;
         try {
-          const jpgDestination = await resolveDestinationDirectory(jpgRoot, item.jpgDestDir, "JPG 보정본 폴더");
+          if (item.jpgExpectedSize === undefined || item.jpgExpectedCaptureTimeMs === undefined) throw new Error("JPG 표본 정보가 없습니다.");
           let jpgOperation: PreservedOperationResult;
           try {
             const jpgSource = await resolveSourceFile(jpgRoot, item.jpgPath, "JPG 원본");
+            await assertRawIdentity(jpgSource, item.jpgExpectedSize, item.jpgExpectedCaptureTimeMs);
             xmpSource = await matchingXmp(jpgSource);
+            const jpgDestination = await resolveDestinationDirectory(jpgRoot, item.jpgDestDir, "JPG 보정본 폴더");
             jpgOperation = await copyOrMovePreservingMetadata({ source: jpgSource, destinationDirectory: jpgDestination, move: true });
           } catch (error) {
-            const completed = item.jpgExpectedSize === undefined
-              ? null
-              : await existingCompletedDestination(
-                jpgRoot,
-                item.jpgPath,
-                item.jpgDestDir,
-                item.jpgExpectedSize,
-                item.jpgExpectedCaptureTimeMs ?? null,
-              );
+            if (!(error instanceof RawMatchSourceMissingError)) throw error;
+            const completed = await existingCompletedDestination(jpgRoot, item.jpgPath, item.jpgDestDir, item.jpgExpectedSize, item.jpgExpectedCaptureTimeMs);
             if (!completed) throw error;
             jpgOperation = {
               source: item.jpgPath,
@@ -241,8 +255,11 @@ export async function executeRemoteRawMatchCopy(
               alreadyExisted: true,
               warnings: ["이미 이동된 JPG를 크기·촬영시각으로 확인함"],
             };
-            const sourceCandidate = path.resolve(jpgRoot, safeRelativePath(item.jpgPath, "JPG 원본"));
-            xmpSource = await matchingXmp(sourceCandidate).catch(() => null);
+            const relativeJpgPath = safeRelativePath(item.jpgPath, "JPG 원본");
+            const relativeParent = path.dirname(relativeJpgPath);
+            const sourceDirectory = relativeParent === "." ? jpgRoot
+              : await resolveExistingDestinationDirectory(jpgRoot, relativeParent, "JPG 원본 폴더");
+            if (sourceDirectory) xmpSource = await matchingXmp(path.join(sourceDirectory, path.basename(relativeJpgPath)));
           }
           if (!jpgOperation.alreadyExisted) jpgMoved += 1;
           attributePassed += 1;
@@ -284,7 +301,7 @@ export async function executeRemoteRawMatchCopy(
       : "RAW 복사가 완료되지 않았습니다.");
   }
   const logPath = payload.logRows.length ? path.join(outputDir, "_match_log.csv") : "";
-  if (logPath) await writeFile(logPath, buildWorkerMatchLog(payload.logRows, attributesByPath), { encoding: "utf8", flag: "w" });
+  if (logPath) await writeWorkerMatchLog(logPath, buildWorkerMatchLog(payload.logRows, attributesByPath));
   if (payload.openOutput && process.platform === "darwin") {
     await execFileAsync("/usr/bin/open", [outputDir]).catch(() => undefined);
   }

@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, stat, symlink, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -11,7 +11,7 @@ import {
   readFileAttributeSnapshot,
   verifyFileAttributeSnapshot,
 } from "@/lib/selectMatch/node/rawMatchCopy";
-import { resolveWorkerRawRootNearJpg, resolveWorkerRootByLocator, resolveWorkerRootFromRemoteSelection } from "@/lib/selectMatch/node/rawMatchPathResolution";
+import { resolveDestinationDirectory, resolveWorkerRawRootNearJpg, resolveWorkerRootByLocator, resolveWorkerRootFromRemoteSelection } from "@/lib/selectMatch/node/rawMatchPathResolution";
 import { remoteRawMatchRunDisabledReason, runRemoteRawMatchCopy } from "@/lib/selectMatch/remoteRawMatch";
 
 const execFileAsync = promisify(execFile);
@@ -100,6 +100,28 @@ describe("Mac Studio RAW 폴더 자동 탐색", () => {
     await expect(resolve(exports)).resolves.toBe(exports);
     await expect(resolve(project)).resolves.toBe(project);
     await expect(resolve(root)).rejects.toThrow(/상위 두 단계/u);
+  });
+
+  it("SMB 재마운트 이름만 보정하고 프로젝트의 숫자 접미사는 그대로 비교한다", async () => {
+    const mounts = path.join(await temporaryRoot(), "Volumes");
+    const jpgFolder = path.join(mounts, "Disk-1", "Project-2", "JPG");
+    await mkdir(jpgFolder, { recursive: true });
+    await writeFile(path.join(jpgFolder, "A.JPG"), "jpg");
+    const locator = { projectKey: "Project-2", folderName: "JPG", kind: "jpg" } as const;
+    const samples = [{ relativePath: "A.JPG", expectedSize: 3, expectedCaptureTimeMs: null }];
+    const resolve = (relativePath: string) => resolveWorkerRootByLocator({ ...locator, relativePath }, [mounts], "JPG 기준 폴더", samples, { requirePathHint: true });
+    await expect(resolve("Disk/Project-2/JPG")).resolves.toBe(await realpath(jpgFolder));
+    await expect(resolve("Disk/Project-1/JPG")).rejects.toThrow(/찾지 못했습니다/u);
+  });
+
+  it("결과 폴더 경로가 링크라면 다른 경로에 하위 폴더를 만들기 전에 멈춘다", async () => {
+    const root = await realpath(await temporaryRoot());
+    const selected = path.join(root, "selected");
+    const unrelated = path.join(root, "unrelated");
+    await Promise.all([mkdir(selected), mkdir(unrelated)]);
+    await symlink(unrelated, path.join(selected, "Selected_RAW"));
+    await expect(resolveDestinationDirectory(selected, "Selected_RAW/scene", "RAW 결과 폴더")).rejects.toThrow(/안전한 폴더/u);
+    await expect(stat(path.join(unrelated, "scene"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("같은 JPG가 여러 저장소에 있으면 복사나 이동 전에 멈춘다", async () => {
@@ -211,6 +233,79 @@ describe("RAW 전체 실패 판정", () => {
 });
 
 describe.runIf(process.platform === "darwin")("Mac Studio RAW 속성 보존 복사", () => {
+  it("같은 이름·크기·수정일이어도 내용이 다른 JPG는 양쪽 모두 보존한다", async () => {
+    const root = await temporaryRoot();
+    const destinationDirectory = path.join(root, "1차보정본");
+    await mkdir(destinationDirectory);
+    const source = path.join(root, "A.JPG");
+    const destination = path.join(destinationDirectory, "A.JPG");
+    await Promise.all([writeFile(source, "alpha"), writeFile(destination, "omega")]);
+    const time = new Date("2026-11-14T10:00:00Z");
+    await Promise.all([utimes(source, time, time), utimes(destination, time, time)]);
+    await expect(copyOrMovePreservingMetadata({ source, destinationDirectory, move: true })).rejects.toThrow(/같은 이름의 다른 파일/u);
+    await expect(readFile(source, "utf8")).resolves.toBe("alpha");
+    await expect(readFile(destination, "utf8")).resolves.toBe("omega");
+  });
+
+  it("이동할 파일이 이미 해당 폴더에 있으면 원본을 유지한다", async () => {
+    const root = await temporaryRoot();
+    const source = path.join(root, "A.JPG");
+    await writeFile(source, "the only copy");
+    await expect(copyOrMovePreservingMetadata({ source, destinationDirectory: root, move: true })).resolves.toMatchObject({ alreadyExisted: true });
+    await expect(readFile(source, "utf8")).resolves.toBe("the only copy");
+  });
+
+  it("동시에 같은 최종 이름으로 이동해도 나머지 원본을 보존한다", async () => {
+    const root = await temporaryRoot();
+    const inputFolders = ["project-1", "project-2"].map((name) => path.join(root, name));
+    const destinationDirectory = path.join(root, "result");
+    await Promise.all([...inputFolders, destinationDirectory].map((folder) => mkdir(folder)));
+    const paths = inputFolders.map((folder) => path.join(folder, "A.JPG"));
+    await Promise.all(paths.map((file, index) => writeFile(file, `file-${index}`)));
+    const results = await Promise.allSettled(paths.map((source) => copyOrMovePreservingMetadata({ source, destinationDirectory, move: true })));
+    const winner = results.findIndex((result) => result.status === "fulfilled");
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    await expect(readFile(path.join(destinationDirectory, "A.JPG"), "utf8")).resolves.toBe(`file-${winner}`);
+    await expect(readFile(paths[1 - winner], "utf8")).resolves.toBe(`file-${1 - winner}`);
+  });
+
+  it("같은 크기의 RAW 충돌을 완료로 바꾸거나 관련 JPG를 옮기지 않는다", async () => {
+    const root = await temporaryRoot();
+    const destination = path.join(root, "Selected_RAW");
+    await mkdir(destination);
+    const raw = path.join(root, "A.ARW");
+    const rawCopy = path.join(destination, "A.ARW");
+    const jpg = path.join(root, "A.JPG");
+    await Promise.all([writeFile(raw, "alpha"), writeFile(rawCopy, "omega"), writeFile(jpg, "jpg")]);
+    const time = new Date("2026-11-14T10:00:00Z");
+    await Promise.all([utimes(raw, time, time), utimes(rawCopy, time, time)]);
+    await expect(executeRemoteRawMatchCopy({
+      rawRootPath: root, jpgRootPath: root,
+      items: [{ rawPath: "A.ARW", destDir: "Selected_RAW", rawExpectedSize: 5, rawExpectedCaptureTimeMs: null,
+        jpgPath: "A.JPG", jpgDestDir: "1차보정본", jpgExpectedSize: 3, jpgExpectedCaptureTimeMs: null }],
+      logRows: [],
+    }, { allowedRoots: [root] })).rejects.toThrow(/같은 이름의 다른 파일/u);
+    await expect(readFile(rawCopy, "utf8")).resolves.toBe("omega");
+    await expect(readFile(jpg, "utf8")).resolves.toBe("jpg");
+    await expect(stat(path.join(root, "1차보정본"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("워커가 복사 후 쓰는 로그가 다른 파일의 내용을 바꾸지 않는다", async () => {
+    const root = await temporaryRoot();
+    const output = path.join(root, "Selected_RAW");
+    const linkedFile = path.join(root, "original-report.txt");
+    await mkdir(output);
+    await Promise.all([writeFile(path.join(root, "A.ARW"), "raw"), writeFile(linkedFile, "original")]);
+    await symlink(linkedFile, path.join(output, "_match_log.csv"));
+    const result = await executeRemoteRawMatchCopy({
+      rawRootPath: root,
+      items: [{ rawPath: "A.ARW", destDir: "Selected_RAW", rawExpectedSize: 3, rawExpectedCaptureTimeMs: null }],
+      logRows: [{ jpgName: "A.JPG", jpgPath: "A.JPG", jpgCaptureTime: "-", rawPath: "A.ARW", rawCaptureTime: "-", result: "확정" }],
+    }, { allowedRoots: [root] });
+    await expect(readFile(linkedFile, "utf8")).resolves.toBe("original");
+    expect(await readFile(result.logPath, "utf8")).toContain('"통과"');
+  });
+
   it("확인된 JPG의 두 단계 위에서 RAW를 복사하고 JPG 이동을 요청하지 않으면 원래 위치에 둔다", async () => {
     const mounts = path.join(await temporaryRoot(), "Volumes");
     const project = path.join(mounts, "CurrentDisk", "project");
