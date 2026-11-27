@@ -19,7 +19,7 @@ import {
 import { loadBrowserThumbnail, releaseObjectUrl } from "@/lib/selectMatch/browserThumbnail";
 import { buildRawIndex, type RawIndex } from "@/lib/selectMatch/rawIndex";
 import { discoverRawFolder } from "@/lib/selectMatch/rawFolderDiscovery";
-import type { BridgeRawFolderCandidate } from "@/lib/photo-bridge/recentFolder";
+import { bridgeRawMatchCandidatesFromJpgFolder, type BridgeRawFolderCandidate } from "@/lib/photo-bridge/recentFolder";
 import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 
 type SelectMatchStep = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick" | "selection_done";
@@ -41,6 +41,7 @@ export function useSelectMatchPreflight({
   step,
   setStep,
   rootDir,
+  jpgRootDir,
   rawMatchDefaultFolder,
   rawMatchFolderCandidates,
   authoritativeMatchTargets,
@@ -52,6 +53,7 @@ export function useSelectMatchPreflight({
   step: SelectMatchStep;
   setStep: Dispatch<SetStateAction<SelectMatchStep>>;
   rootDir: FileSystemDirectoryHandle | null;
+  jpgRootDir: FileSystemDirectoryHandle | null;
   rawMatchDefaultFolder: FileSystemDirectoryHandle | null;
   rawMatchFolderCandidates: readonly BridgeRawFolderCandidate[];
   authoritativeMatchTargets: ReadonlySet<string>;
@@ -66,7 +68,7 @@ export function useSelectMatchPreflight({
   const rawIndexRef = useRef<RawIndex>(new Map());
   const preflightRequestRef = useRef(0);
   const [rawDiscovery, setRawDiscovery] = useState<RawDiscoveryState>({ status: "idle", message: "" });
-  const rawDiscoveryKeyRef = useRef("");
+  const rawDiscoveryKeyRef = useRef<{ jpgFolder: FileSystemDirectoryHandle; key: string } | null>(null);
   const rawTargetBasenames = useMemo(
     () => new Set(selectedJpgSources.map((source) => normalizePhotoToolFileKey(source.basename)).filter(Boolean)),
     [selectedJpgSources],
@@ -140,16 +142,18 @@ export function useSelectMatchPreflight({
   }, [authoritativeMatchTargets, buildIndex, missingMatchTargetBasenames, rawRootDir, rootDir, selectedJpgSources, setStep, thumbnailUrlsRef]);
 
   useEffect(() => {
-    if (!bridgeLinked || step !== "raw_pick" || !authoritativeMatchTargets.size || !selectedJpgSources.length || !rawMatchFolderCandidates.length) return;
+    if (!bridgeLinked || step !== "raw_pick" || !authoritativeMatchTargets.size || !selectedJpgSources.length || !jpgRootDir) return;
     const selectionKey = Array.from(authoritativeMatchTargets).sort().join("|");
-    const discoveryKey = `${rawMatchFolderCandidates.map((item) => `${item.distance}:${item.name}`).join("|")}::${selectionKey}`;
-    if (rawDiscoveryKeyRef.current === discoveryKey) return;
-    rawDiscoveryKeyRef.current = discoveryKey;
+    const discoveryKey = `${jpgRootDir.name}::${rawMatchFolderCandidates.map((item) => `${item.distance}:${item.name}`).join("|")}::${selectionKey}`;
+    if (rawDiscoveryKeyRef.current?.jpgFolder === jpgRootDir && rawDiscoveryKeyRef.current.key === discoveryKey) return;
+    rawDiscoveryKeyRef.current = { jpgFolder: jpgRootDir, key: discoveryKey };
     let disposed = false;
 
-    setRawDiscovery({ status: "searching", message: "현재 폴더와 상위 폴더에서 RAW 원본 위치를 찾고 있습니다." });
-    void discoverRawFolder({
-      candidates: rawMatchFolderCandidates,
+    setRawDiscovery({ status: "searching", message: "JPG 폴더와 상위 두 단계에서 RAW 원본을 찾고 있습니다." });
+    const roots = rawMatchFolderCandidates.map((candidate) => candidate.handle).reverse();
+    if (rootDir) roots.push(rootDir);
+    void bridgeRawMatchCandidatesFromJpgFolder(jpgRootDir, roots).then((candidates) => discoverRawFolder({
+      candidates,
       selectedNames: rawTargetBasenames,
       onCandidate: (candidate, index, total) => {
         if (!disposed) {
@@ -160,7 +164,7 @@ export function useSelectMatchPreflight({
           });
         }
       },
-    }).then(async (result) => {
+    })).then(async (result) => {
       if (disposed) return;
       if (!result.candidate) {
         const timedOut = result.attempts
@@ -189,7 +193,7 @@ export function useSelectMatchPreflight({
     });
 
     return () => { disposed = true; };
-  }, [authoritativeMatchTargets, bridgeLinked, rawMatchFolderCandidates, rawTargetBasenames, runPreflight, selectedJpgSources.length, step]);
+  }, [authoritativeMatchTargets, bridgeLinked, jpgRootDir, rawMatchFolderCandidates, rawTargetBasenames, rootDir, runPreflight, selectedJpgSources.length, step]);
 
   const pickRawFolder = useCallback(async () => {
     try {
@@ -217,7 +221,7 @@ export function useSelectMatchPreflight({
 
   const resetForCriteria = useCallback(() => {
     preflightRequestRef.current += 1;
-    rawDiscoveryKeyRef.current = "";
+    rawDiscoveryKeyRef.current = null;
     rawIndexRef.current.clear();
     setPreflight(null);
     setManualRawChoices({});

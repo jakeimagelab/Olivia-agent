@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import type { ApprovedCaptureMatch } from "@/components/photo-workspace/useSelectMatchPreflight";
+import type { BridgeRawFolderCandidate } from "@/lib/photo-bridge/recentFolder";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import type { CaptureMatchPreflight } from "@/lib/selectMatch/captureMatch";
 import { formatCaptureTime } from "@/lib/selectMatch/captureTime";
@@ -18,7 +19,7 @@ import {
   type RemoteRawMatchCopyPayload,
   type RemoteRawMatchJob,
 } from "@/lib/selectMatch/remoteRawMatch";
-import { relativeToDirectoryRoot } from "@/lib/selectMatch/workspaceHelpers";
+import { relativeToDirectoryRoot, resolveLocalRawMatchRootRelation } from "@/lib/selectMatch/workspaceHelpers";
 import { resolveRawMatchDestinationDirectories } from "@/lib/selectMatch/rawMatchDestination";
 
 const RAW_MATCH_JOB_ID = "raw-match";
@@ -63,30 +64,26 @@ export function useSelectMatchExecution({
   setStep,
   rootDir,
   rawRootDir,
-  jpgScanRootName,
+  jpgRootDir,
+  rawMatchFolderCandidates,
   preflight,
   approvedMatches,
   workerOnline,
   projectKey,
-  rawRootName,
-  rawRootRelativePath,
-  jpgRootName,
-  jpgRootRelativePath,
+  rawMatchFolderPath,
   moveMatchedJpgs,
   deliveredFolderName,
 }: {
   setStep: Dispatch<SetStateAction<SelectMatchStep>>;
   rootDir: FileSystemDirectoryHandle | null;
   rawRootDir: FileSystemDirectoryHandle | null;
-  jpgScanRootName: string;
+  jpgRootDir: FileSystemDirectoryHandle | null;
+  rawMatchFolderCandidates: readonly BridgeRawFolderCandidate[];
   preflight: CaptureMatchPreflight | null;
   approvedMatches: readonly ApprovedCaptureMatch[];
   workerOnline: boolean | null;
   projectKey: string;
-  rawRootName: string;
-  rawRootRelativePath?: string;
-  jpgRootName: string;
-  jpgRootRelativePath?: string;
+  rawMatchFolderPath: string;
   moveMatchedJpgs: boolean;
   deliveredFolderName: string;
 }) {
@@ -114,11 +111,12 @@ export function useSelectMatchExecution({
       setRemoteExecutionError(unavailableReason);
       return;
     }
-    if (!rawRootName.trim()) {
+    const rawDirectory = rawRootDir ?? rootDir;
+    if (!rawDirectory) {
       setRemoteExecutionError("RAW 원본 폴더 이름을 확인할 수 없습니다. RAW 폴더를 다시 선택해 주세요.");
       return;
     }
-    if (moveMatchedJpgs && !jpgRootName.trim()) {
+    if (!jpgRootDir) {
       setRemoteExecutionError("JPG 기준 폴더 이름을 확인할 수 없습니다. JPG 폴더를 다시 선택해 주세요.");
       return;
     }
@@ -147,59 +145,57 @@ export function useSelectMatchExecution({
       .map((item) => `${item.jpg.name} — ${item.status === "time_mismatch" ? "촬영시각 불일치" : item.status === "multiple_candidates" ? "후보 여러 개" : item.status === "missing_time" ? "촬영시각 없음" : "RAW 없음"}`);
     const approvedById = new Map(approvedMatches.map((match) => [match.item.id, match]));
     const approvedRawPaths = approvedMatches.map(({ candidate }) => (
-      relativeToDirectoryRoot(candidate.entry.relativePath, rawRootDir?.name ?? rootDir?.name ?? "")
+      relativeToDirectoryRoot(candidate.entry.relativePath, rawDirectory.name)
     ));
     const destinationDirectories = resolveRawMatchDestinationDirectories(approvedRawPaths);
-    const payload: RemoteRawMatchCopyPayload = {
-      rawRoot: {
-        projectKey,
-        folderName: rawRootName.trim(),
-        ...(rawRootRelativePath?.trim() ? { relativePath: rawRootRelativePath.trim() } : {}),
-        kind: "raw",
-      },
-      ...(moveMatchedJpgs ? {
-        jpgRoot: {
-          projectKey,
-          folderName: jpgRootName.trim(),
-          ...(jpgRootRelativePath?.trim() ? { relativePath: jpgRootRelativePath.trim() } : {}),
-          kind: "jpg" as const,
-        },
-      } : {}),
-      items: await Promise.all(approvedMatches.map(async ({ item, candidate }, index) => {
-        const jpgFile = moveMatchedJpgs ? await item.jpg.handle.getFile() : null;
-        return {
-          rawPath: approvedRawPaths[index],
-          destDir: destinationDirectories[index],
-          rawAction: "copy",
-          rawExpectedSize: candidate.fileSize,
-          rawExpectedCaptureTimeMs: candidate.captureTime?.timestampMs ?? null,
-          ...(moveMatchedJpgs && jpgFile ? {
-            jpgPath: relativeToDirectoryRoot(item.jpg.relativePath, jpgScanRootName),
-            jpgDestDir: deliveredFolderName.trim(),
-            jpgExpectedSize: jpgFile.size,
-            jpgExpectedCaptureTimeMs: item.jpgCaptureTime?.timestampMs ?? null,
-          } : {}),
-        };
-      })),
-      logRows: preflight.items.map((item) => {
-        const approved = approvedById.get(item.id);
-        return {
-          jpgName: item.jpg.name,
-          jpgPath: item.jpg.relativePath,
-          jpgCaptureTime: formatCaptureTime(item.jpgCaptureTime),
-          rawPath: approved
-            ? relativeToDirectoryRoot(approved.candidate.entry.relativePath, rawRootDir?.name ?? rootDir?.name ?? "")
-            : item.candidates.map((candidate) => candidate.entry.relativePath).join(" | "),
-          rawCaptureTime: approved
-            ? formatCaptureTime(approved.candidate.captureTime)
-            : item.candidates.map((candidate) => formatCaptureTime(candidate.captureTime)).join(" | ") || "촬영시각 없음",
-          result: approved ? approved.manual ? "수동선택" : "확정" : "건너뜀",
-        };
-      }),
-      openOutput: true,
-    };
-
     try {
+      const ancestry = rawMatchFolderCandidates.map((candidate) => candidate.handle);
+      if (rootDir) ancestry.push(rootDir);
+      const rawRootRelation = await resolveLocalRawMatchRootRelation(jpgRootDir, rawDirectory, ancestry);
+      if (!rawRootRelation) throw new Error("현재 JPG 폴더와 상위 두 단계 안에서 RAW 원본 폴더를 확인해 주세요.");
+      const bridgeDirectory = rawMatchFolderCandidates[0]?.handle;
+      const jpgFromBridge = bridgeDirectory && rawMatchFolderPath ? await bridgeDirectory.resolve(jpgRootDir) : null;
+      const jpgRootRelativePath = jpgFromBridge
+        ? [...rawMatchFolderPath.split(" / "), ...jpgFromBridge].join("/")
+        : jpgRootDir.name;
+      const payload: RemoteRawMatchCopyPayload = {
+        rawRoot: { projectKey, folderName: rawDirectory.name, kind: "raw" },
+        rawRootRelation,
+        jpgRoot: { projectKey, folderName: jpgRootDir.name, relativePath: jpgRootRelativePath, kind: "jpg" },
+        items: await Promise.all(approvedMatches.map(async ({ item, candidate }, index) => {
+          const jpgFile = moveMatchedJpgs || index < 2 ? await item.jpg.handle.getFile() : null;
+          return {
+            rawPath: approvedRawPaths[index],
+            destDir: destinationDirectories[index],
+            rawAction: "copy",
+            rawExpectedSize: candidate.fileSize,
+            rawExpectedCaptureTimeMs: candidate.captureTime?.timestampMs ?? null,
+            ...(jpgFile ? {
+              jpgPath: relativeToDirectoryRoot(item.jpg.relativePath, jpgRootDir.name),
+              ...(moveMatchedJpgs ? { jpgDestDir: deliveredFolderName.trim() } : {}),
+              jpgExpectedSize: jpgFile.size,
+              jpgExpectedCaptureTimeMs: item.jpgCaptureTime?.timestampMs ?? null,
+            } : {}),
+          };
+        })),
+        logRows: preflight.items.map((item) => {
+          const approved = approvedById.get(item.id);
+          return {
+            jpgName: item.jpg.name,
+            jpgPath: item.jpg.relativePath,
+            jpgCaptureTime: formatCaptureTime(item.jpgCaptureTime),
+            rawPath: approved
+              ? relativeToDirectoryRoot(approved.candidate.entry.relativePath, rawDirectory.name)
+              : item.candidates.map((candidate) => candidate.entry.relativePath).join(" | "),
+            rawCaptureTime: approved
+              ? formatCaptureTime(approved.candidate.captureTime)
+              : item.candidates.map((candidate) => formatCaptureTime(candidate.captureTime)).join(" | ") || "촬영시각 없음",
+            result: approved ? approved.manual ? "수동선택" : "확정" : "건너뜀",
+          };
+        }),
+        openOutput: true,
+      };
+
       const remoteResult = await runRemoteRawMatchCopy(payload, {
         workerOnline,
         onJob: (job: RemoteRawMatchJob) => {
@@ -255,7 +251,7 @@ export function useSelectMatchExecution({
     } finally {
       remoteRawMatchJobIdRef.current = "";
     }
-  }, [approvedMatches, deliveredFolderName, jpgRootName, jpgRootRelativePath, jpgScanRootName, moveMatchedJpgs, preflight, projectKey, rawRootDir, rawRootName, rawRootRelativePath, rootDir, setProgress, setStep, workerOnline]);
+  }, [approvedMatches, deliveredFolderName, jpgRootDir, moveMatchedJpgs, preflight, projectKey, rawMatchFolderCandidates, rawMatchFolderPath, rawRootDir, rootDir, setProgress, setStep, workerOnline]);
 
   const cancelRemoteRawMatch = useCallback(() => {
     cancelRef.current = true;

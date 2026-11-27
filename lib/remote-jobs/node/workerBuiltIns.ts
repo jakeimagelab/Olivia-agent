@@ -217,10 +217,7 @@ export async function executeWorkerBuiltIn(
   if (job.action === "PERSON_SELECT_LIST_FOLDER") return listPersonSelectFolder(job.payload);
   if (job.action === "PHOTO_CHECK_WORK_FOLDER") return checkPhotoWorkFolder(job.payload);
   if (job.action === "PHOTO_RAW_MATCH_COPY") {
-    const workerHome = process.env.OLIVIA_WORKER_HOME?.trim() || path.join(homedir(), "OliviaWorker");
-    const stateDirectory = process.env.OLIVIA_WORKER_STATE_DIR?.trim() || path.join(workerHome, "state");
     return executeRemoteRawMatchCopy(job.payload as RemoteRawMatchCopyPayload, {
-      rootCacheFilePath: path.join(stateDirectory, "raw-match-root-cache.json"),
       shouldCancel: options.shouldCancel,
       onProgress: async (progress) => options.onProgress?.({
         stage: "copying",

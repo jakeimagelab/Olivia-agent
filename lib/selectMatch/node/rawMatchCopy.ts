@@ -25,6 +25,7 @@ import {
   resolveSourceFile,
   resolveWorkerRoot,
   resolveWorkerRootByLocator,
+  resolveWorkerRawRootNearJpg,
   safeRelativePath,
   sampleMatches,
 } from "@/lib/selectMatch/node/rawMatchPathResolution";
@@ -40,7 +41,6 @@ const execFileAsync = promisify(execFile);
 
 export type RawMatchCopyExecutionOptions = {
   allowedRoots?: string[];
-  rootCacheFilePath?: string;
   shouldCancel?: () => Promise<boolean>;
   onProgress?: (progress: { current: number; total: number; message: string }) => Promise<void> | void;
 };
@@ -77,10 +77,6 @@ export async function executeRemoteRawMatchCopy(
     ? await Promise.all(options.allowedRoots.map((root) => realpath(root)))
     : await existingAllowedRoots(process.env);
   if (!allowedRoots.length) throw new Error("Mac Studio 사진 저장소가 연결되어 있지 않습니다.");
-  const locatorOptions = {
-    cacheFilePath: options.rootCacheFilePath,
-    localRoot: process.env.OLIVIA_RAW_MATCH_LOCAL_ROOT?.trim(),
-  };
   const rawSamples = payload.items.map((item) => ({
     relativePath: item.rawPath,
     alternativeRelativePaths: item.rawAction === "move"
@@ -99,18 +95,21 @@ export async function executeRemoteRawMatchCopy(
         expectedCaptureTimeMs: item.jpgExpectedCaptureTimeMs,
       }]
     : []);
-  await options.onProgress?.({ current: 0, total: payload.items.length, message: "RAW 원본 폴더를 찾는 중" });
-  const rawRoot = payload.rawRoot
-    ? await resolveWorkerRootByLocator(payload.rawRoot, allowedRoots, "RAW 원본 폴더", rawSamples, locatorOptions)
-    : await resolveWorkerRoot(payload.rawRootPath ?? "", allowedRoots, "RAW 원본 폴더", rawSamples);
+  if (payload.rawRoot && (!payload.jpgRoot || !jpgSamples.length)) {
+    throw new Error("JPG 폴더와 표본 정보가 필요합니다. 새로고침한 뒤 JPG 폴더에서 다시 실행해 주세요.");
+  }
   if (payload.jpgRoot || payload.jpgRootPath) {
     await options.onProgress?.({ current: 0, total: payload.items.length, message: "JPG 기준 폴더를 찾는 중" });
   }
   const jpgRoot = payload.jpgRoot
-    ? await resolveWorkerRootByLocator(payload.jpgRoot, allowedRoots, "JPG 기준 폴더", jpgSamples, locatorOptions)
+    ? await resolveWorkerRootByLocator(payload.jpgRoot, allowedRoots, "JPG 기준 폴더", jpgSamples, { requirePathHint: true })
     : payload.jpgRootPath
       ? await resolveWorkerRoot(payload.jpgRootPath, allowedRoots, "JPG 기준 폴더", jpgSamples)
     : null;
+  await options.onProgress?.({ current: 0, total: payload.items.length, message: "JPG 폴더와 상위 두 단계에서 RAW를 확인하는 중" });
+  const rawRoot = payload.rawRoot && jpgRoot
+    ? await resolveWorkerRawRootNearJpg(jpgRoot, payload.rawRoot, allowedRoots, rawSamples, payload.rawRootRelation)
+    : await resolveWorkerRoot(payload.rawRootPath ?? "", allowedRoots, "RAW 원본 폴더", rawSamples);
 
   // 잘못 연결된 브라우저 핸들 경로로 전체 작업을 시작하지 않도록 처음 두 표본을 먼저 확인한다.
   for (const sample of rawSamples.slice(0, 2)) {

@@ -24,6 +24,26 @@ export function relativeToDirectoryRoot(relativePath: string, rootName: string):
     : normalized;
 }
 
+export async function resolveLocalRawMatchRootRelation(
+  jpgRoot: FileSystemDirectoryHandle,
+  rawRoot: FileSystemDirectoryHandle,
+  ancestors: readonly FileSystemDirectoryHandle[],
+): Promise<LocalRawMatchRootRelation | null> {
+  let closest: LocalRawMatchRootRelation | null = null;
+  for (const directory of new Set([jpgRoot, rawRoot, ...ancestors])) {
+    const jpgPath = await directory.resolve(jpgRoot);
+    if (!jpgPath || jpgPath.length > 2 || (closest && jpgPath.length >= closest.parentSteps)) continue;
+    const rawPath = await directory.resolve(rawRoot);
+    if (!rawPath) continue;
+    closest = {
+      parentSteps: jpgPath.length as LocalRawMatchRootRelation["parentSteps"],
+      ...(rawPath.length ? { subdirectory: rawPath.join("/") } : {}),
+    };
+    if (closest.parentSteps === 0) break;
+  }
+  return closest;
+}
+
 /** 확장자가 있으면 정확히, 없으면 베이스네임만 비교할 검색어로 정규화한다. */
 export function parseFileNameQueries(text: string): NameQuery[] {
   const tokens = text.split(/[\r\n,]+/).map((token) => token.trim()).filter(Boolean);
@@ -89,3 +109,4 @@ export function checkFileSequence(fileNames: readonly string[]): SequenceCheckRe
     rangeTooLarge,
   };
 }
+import type { LocalRawMatchRootRelation } from "@/lib/selectMatch/remoteRawMatchTypes";

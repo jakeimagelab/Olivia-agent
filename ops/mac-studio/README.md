@@ -67,8 +67,6 @@ OLIVIA_WORKER_POLL_SECONDS=5
 OLIVIA_WORKER_IDLE_MAX_SECONDS=10
 OLIVIA_PHOTO_SOURCE_ROOT="/Volumes/Workstation(M.2SSD)"
 OLIVIA_PHOTO_WORK_ROOT="/Volumes/Agentstation"
-# 로컬 RAW 매칭에 외장 디스크를 고정할 때 지정
-# OLIVIA_RAW_MATCH_LOCAL_ROOT="/Volumes/Seagate"
 # 개인별 사진 셀렉 전용 허용 루트 — JSON 배열 또는 줄바꿈 목록(콜론 구분 금지)
 OLIVIA_PERSON_SELECT_ROOTS='["/Volumes/Workstation(M.2SSD)","/Users/jakemacstudio/UGnasync"]'
 ```

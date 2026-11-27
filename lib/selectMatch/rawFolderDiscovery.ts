@@ -56,7 +56,7 @@ export async function discoverRawFolder(input: {
   const targets = new Set(samples);
   let best: { candidate: BridgeRawFolderCandidate; matchedSamples: number } | null = null;
 
-  const candidates = input.candidates.filter((candidate) => !shouldSkipRawScanDirectory(candidate.name)).slice(0, 3);
+  const candidates = input.candidates.filter((candidate) => candidate.distance === 0 || !shouldSkipRawScanDirectory(candidate.name)).slice(0, 3);
   const timeoutMs = Math.max(1, input.candidateTimeoutMs ?? 5_000);
   for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
     const candidate = candidates[candidateIndex];

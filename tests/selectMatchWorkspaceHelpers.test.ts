@@ -4,6 +4,7 @@ import {
   checkFileSequence,
   parseFileNameQueries,
   relativeToDirectoryRoot,
+  resolveLocalRawMatchRootRelation,
 } from "@/lib/selectMatch/workspaceHelpers";
 import { normalizeRecognizedFileNames } from "@/components/photo-workspace/useSelectMatchClientInput";
 
@@ -24,6 +25,24 @@ describe("select match workspace helpers", () => {
 
   it("builds directory-relative paths without guessing a Mac Studio absolute path", () => {
     expect(relativeToDirectoryRoot("촬영/JPG전체/_AK_0177.JPG", "촬영")).toBe("JPG전체/_AK_0177.JPG");
+  });
+
+  it("uses the JPG and RAW handles to prove the relative directory within two levels", async () => {
+    function directory(parts: string[]) {
+      return {
+        name: parts.at(-1),
+        parts,
+        async resolve(other: { parts: string[] }) {
+          return parts.every((part, index) => part === other.parts[index]) ? other.parts.slice(parts.length) : null;
+        },
+      } as unknown as FileSystemDirectoryHandle;
+    }
+    const jpg = directory(["disk", "project", "JPG전체", "scene"]);
+    const raw = directory(["disk", "project", "RAW"]);
+    await expect(resolveLocalRawMatchRootRelation(jpg, raw, [directory(["disk", "project"])]))
+      .resolves.toEqual({ parentSteps: 2, subdirectory: "RAW" });
+    await expect(resolveLocalRawMatchRootRelation(jpg, raw, [directory(["disk"])]))
+      .resolves.toBeNull();
   });
 
   it("groups missing file number ranges and ignores duplicates", () => {

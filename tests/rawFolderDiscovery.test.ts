@@ -38,20 +38,20 @@ function directory(input: {
 }
 
 describe("RAW 폴더 자동 탐색", () => {
-  it("JPG/JPG원본 후보는 대소문자와 유니코드 정규화와 무관하게 건너뛴다", async () => {
+  it("현재 JPG 폴더를 먼저 확인하고 상위 탐색의 제외 규칙을 유지한다", async () => {
     expect(shouldSkipRawScanDirectory("JPG")).toBe(true);
     expect(shouldSkipRawScanDirectory("jpg원본".normalize("NFD"))).toBe(true);
 
     const raw = directory({ name: "RAW", files: { "A.CR2": rawFile("A.CR2") } });
-    const ignored = directory({ name: "JPG", files: { "A.CR2": rawFile("A.CR2") } });
+    const jpg = directory({ name: "JPG", files: { "A.CR2": rawFile("A.CR2") } });
     const result = await discoverRawFolder({
       candidates: [
-        { name: "JPG", handle: ignored, distance: 0 },
+        { name: "JPG", handle: jpg, distance: 0 },
         { name: "RAW", handle: raw, distance: 1 },
       ],
       selectedNames: ["A.JPG"],
     });
-    expect(result.candidate?.name).toBe("RAW");
+    expect(result.candidate?.handle).toBe(jpg);
     expect(result.attempts).toHaveLength(1);
   });
 

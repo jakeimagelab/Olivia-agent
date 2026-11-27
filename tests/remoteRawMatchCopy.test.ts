@@ -11,7 +11,7 @@ import {
   readFileAttributeSnapshot,
   verifyFileAttributeSnapshot,
 } from "@/lib/selectMatch/node/rawMatchCopy";
-import { resolveWorkerRootByLocator, resolveWorkerRootFromRemoteSelection } from "@/lib/selectMatch/node/rawMatchPathResolution";
+import { resolveWorkerRawRootNearJpg, resolveWorkerRootByLocator, resolveWorkerRootFromRemoteSelection } from "@/lib/selectMatch/node/rawMatchPathResolution";
 import { remoteRawMatchRunDisabledReason, runRemoteRawMatchCopy } from "@/lib/selectMatch/remoteRawMatch";
 
 const execFileAsync = promisify(execFile);
@@ -83,23 +83,44 @@ describe("Mac Studio RAW 폴더 자동 탐색", () => {
     await expect(resolveWorkerRootByLocator(locator, [root], "RAW 원본 폴더", samples)).rejects.toThrow(/Seagate/u);
   });
 
-  it("로컬 디스크가 설정되면 다른 볼륨의 동일한 파일과 캐시를 사용하지 않는다", async () => {
-    const root = path.join(await temporaryRoot(), "Volumes");
-    const localRoot = path.join(root, "Seagate");
-    const localProject = path.join(localRoot, "Project", "R5");
-    const nasProject = path.join(root, "Workstation", "Project", "R5");
-    for (const directory of [localProject, nasProject]) {
-      await mkdir(directory, { recursive: true });
+  it("JPG 폴더와 상위 두 단계에서만 RAW 표본을 확인한다", async () => {
+    const root = await realpath(await temporaryRoot());
+    const project = path.join(root, "project");
+    const exports = path.join(project, "exports");
+    const jpgFolder = path.join(exports, "JPG");
+    await mkdir(jpgFolder, { recursive: true });
+    for (const directory of [root, project, exports, jpgFolder]) {
       await writeFile(path.join(directory, "A.ARW"), "raw");
     }
-    const cacheFilePath = path.join(root, "cache.json");
-    await writeFile(cacheFilePath, JSON.stringify({ "R5::raw::r5": nasProject }));
-    const locator = { projectKey: "R5", folderName: "R5", relativePath: "R5", kind: "raw" } as const;
     const samples = [{ relativePath: "A.ARW", expectedSize: 3, expectedCaptureTimeMs: null }];
-    const options = { cacheFilePath, localRoot };
-    await expect(resolveWorkerRootByLocator(locator, [root], "RAW 원본 폴더", samples, options)).resolves.toBe(await realpath(localProject));
-    await rm(localRoot, { recursive: true });
-    await expect(resolveWorkerRootByLocator(locator, [root], "RAW 원본 폴더", samples, options)).rejects.toThrow(/로컬 RAW 작업 디스크.*Seagate/u);
+    const resolve = (folder: string) => resolveWorkerRawRootNearJpg(jpgFolder, {
+      projectKey: "project", folderName: path.basename(folder), kind: "raw",
+    }, [root], samples);
+    await expect(resolve(jpgFolder)).resolves.toBe(jpgFolder);
+    await expect(resolve(exports)).resolves.toBe(exports);
+    await expect(resolve(project)).resolves.toBe(project);
+    await expect(resolve(root)).rejects.toThrow(/상위 두 단계/u);
+  });
+
+  it("같은 JPG가 여러 저장소에 있으면 복사나 이동 전에 멈춘다", async () => {
+    const mounts = path.join(await temporaryRoot(), "Volumes");
+    const volumes = ["FirstDisk", "SecondDisk"].map((name) => path.join(mounts, name, "project", "R5"));
+    for (const root of volumes) {
+      await mkdir(root, { recursive: true });
+      await writeFile(path.join(root, "A.JPG"), "jpg");
+      await writeFile(path.join(root, "A.ARW"), "raw");
+    }
+    await expect(executeRemoteRawMatchCopy({
+      jpgRoot: { projectKey: "R5", folderName: "R5", relativePath: "R5", kind: "jpg" },
+      rawRoot: { projectKey: "R5", folderName: "R5", kind: "raw" },
+      rawRootRelation: { parentSteps: 0 },
+      items: [{ rawPath: "A.ARW", destDir: "Selected_RAW", rawExpectedSize: 3, rawExpectedCaptureTimeMs: null,
+        jpgPath: "A.JPG", jpgExpectedSize: 3, jpgExpectedCaptureTimeMs: null }],
+      logRows: [],
+    }, { allowedRoots: [mounts] })).rejects.toThrow(/JPG 기준 폴더.*후보가 여러 곳/u);
+    for (const root of volumes) {
+      await expect(stat(path.join(root, "Selected_RAW"))).rejects.toMatchObject({ code: "ENOENT" });
+    }
   });
 
   it("NFD 폴더와 SMB 재마운트 이름을 표본 2개로 찾고 프로젝트별로 캐시한다", async () => {
@@ -190,6 +211,27 @@ describe("RAW 전체 실패 판정", () => {
 });
 
 describe.runIf(process.platform === "darwin")("Mac Studio RAW 속성 보존 복사", () => {
+  it("확인된 JPG의 두 단계 위에서 RAW를 복사하고 JPG 이동을 요청하지 않으면 원래 위치에 둔다", async () => {
+    const mounts = path.join(await temporaryRoot(), "Volumes");
+    const project = path.join(mounts, "CurrentDisk", "project");
+    const unrelated = path.join(mounts, "OtherDisk", "project");
+    const jpgFolder = path.join(project, "JPG전체", "scene");
+    for (const folder of [jpgFolder, path.join(project, "RAW"), path.join(unrelated, "RAW")]) await mkdir(folder, { recursive: true });
+    await writeFile(path.join(jpgFolder, "A.JPG"), "jpg");
+    await writeFile(path.join(project, "RAW", "A.ARW"), "raw");
+    await writeFile(path.join(unrelated, "RAW", "A.ARW"), "raw");
+    const result = await executeRemoteRawMatchCopy({
+      jpgRoot: { projectKey: "project", folderName: "scene", relativePath: "CurrentDisk/project/JPG전체/scene", kind: "jpg" },
+      rawRoot: { projectKey: "project", folderName: "RAW", kind: "raw" },
+      rawRootRelation: { parentSteps: 2, subdirectory: "RAW" },
+      items: [{ rawPath: "A.ARW", destDir: "Selected_RAW", rawExpectedSize: 3, rawExpectedCaptureTimeMs: null,
+        jpgPath: "A.JPG", jpgExpectedSize: 3, jpgExpectedCaptureTimeMs: null }],
+      logRows: [],
+    }, { allowedRoots: [mounts] });
+    expect(result).toMatchObject({ copied: 1, jpgMoved: 0, failed: 0, outputDir: await realpath(path.join(project, "RAW", "Selected_RAW")) });
+    await expect(readFile(path.join(jpgFolder, "A.JPG"), "utf8")).resolves.toBe("jpg");
+    await expect(stat(path.join(unrelated, "RAW", "Selected_RAW"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
   it.each([false, true])("생성일 차이는 RAW 내용 검증 후에만 허용한다 (손상 %s)", async (corrupt) => {
     const root = await realpath(await temporaryRoot());
     const source = path.join(root, "A.ARW");

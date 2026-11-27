@@ -104,6 +104,17 @@ export async function resolveBridgeFolderTrail(
   return trail;
 }
 
+export async function bridgeRawMatchCandidatesFromJpgFolder(
+  jpgFolder: FileSystemDirectoryHandle,
+  roots: readonly FileSystemDirectoryHandle[],
+): Promise<BridgeRawFolderCandidate[]> {
+  for (const root of new Set(roots)) {
+    const trail = await resolveBridgeFolderTrail(root, jpgFolder);
+    if (trail) return bridgeRawMatchFolderCandidates(trail);
+  }
+  return [{ name: jpgFolder.name, handle: jpgFolder, distance: 0 }];
+}
+
 export async function saveBridgeFolderTrail(trail: readonly BridgeFolderTrailItem[]): Promise<void> {
   if (!trail.length) return;
   await transact("readwrite", (store) => store.put(trail.map((item) => ({ name: item.name, handle: item.handle })), LAST_FOLDER_KEY));

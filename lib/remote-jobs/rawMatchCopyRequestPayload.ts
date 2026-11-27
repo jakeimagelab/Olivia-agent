@@ -39,7 +39,7 @@ function normalizeItem(entry: unknown, index: number): RemoteJobPayload {
   const jpgDestDir = item.jpgDestDir === undefined
     ? undefined
     : safeWorkerRelativePath(item.jpgDestDir, `items[${index}].jpgDestDir`);
-  if (Boolean(jpgPath) !== Boolean(jpgDestDir)) {
+  if (jpgDestDir && !jpgPath) {
     throw new Error(`items[${index}]의 JPG 원본과 대상 폴더를 함께 지정해 주세요.`);
   }
 
@@ -73,9 +73,20 @@ function normalizeItem(entry: unknown, index: number): RemoteJobPayload {
     rawAction: item.rawAction === "move" ? "move" : "copy",
     rawExpectedSize,
     rawExpectedCaptureTimeMs,
-    ...(jpgPath && jpgDestDir
-      ? { jpgPath, jpgDestDir, jpgExpectedSize, jpgExpectedCaptureTimeMs }
+    ...(jpgPath
+      ? { jpgPath, jpgExpectedSize, jpgExpectedCaptureTimeMs, ...(jpgDestDir ? { jpgDestDir } : {}) }
       : {}),
+  };
+}
+
+function normalizeRawRootRelation(entry: unknown): RemoteJobPayload {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error("RAW 폴더의 상대 위치를 확인할 수 없습니다.");
+  const value = entry as RemoteJobPayload;
+  const parentSteps = finiteNumber(value.parentSteps, "JPG 상위 폴더 단계", 0, 2, true);
+  if (parentSteps === undefined) throw new Error("JPG 상위 폴더 단계가 필요합니다.");
+  return {
+    parentSteps,
+    ...(value.subdirectory === undefined ? {} : { subdirectory: safeWorkerRelativePath(value.subdirectory, "RAW 하위 폴더") }),
   };
 }
 
@@ -142,6 +153,7 @@ export function normalizeRawMatchCopyRequestPayload(requested: RemoteJobPayload)
   return {
     ...(rawRoot ? { rawRoot } : { rawRootPath }),
     ...(jpgRoot ? { jpgRoot } : jpgRootPath ? { jpgRootPath } : {}),
+    ...(requested.rawRootRelation === undefined ? {} : { rawRootRelation: normalizeRawRootRelation(requested.rawRootRelation) }),
     items: items.map(normalizeItem),
     logRows: logRows.map(normalizeLogRow),
     ...(typeof requested.openOutput === "boolean" ? { openOutput: requested.openOutput } : {}),

@@ -15,7 +15,7 @@ import path from "node:path";
 import { resolvePhotoWorkPath } from "@/lib/person-select/sourceRoots";
 import { fileSystemEntryExists } from "@/lib/selectMatch/node/preservedFileOperation";
 import { parseCaptureTime } from "@/lib/selectMatch/captureTime";
-import type { RemoteRawMatchRootLocator } from "@/lib/selectMatch/remoteRawMatchTypes";
+import type { LocalRawMatchRootRelation, RemoteRawMatchRootLocator } from "@/lib/selectMatch/remoteRawMatchTypes";
 
 const RAW_HEADER_BYTES = 4 * 1024 * 1024;
 const WORKER_ROOT_SEARCH_DEPTH = 4;
@@ -266,10 +266,11 @@ export async function resolveWorkerRootByLocator(
   allowedRoots: readonly string[],
   label: string,
   samples: readonly RootIdentitySample[],
-  options: { cacheFilePath?: string; localRoot?: string } = {},
+  options: { cacheFilePath?: string; requirePathHint?: boolean } = {},
 ): Promise<string> {
   const canonicalAllowedRoots = await Promise.all(allowedRoots.map((root) => realpath(root)));
   const requestedPath = locator.relativePath?.trim();
+  const requirePathHint = Boolean(options.requirePathHint && requestedPath);
   if (requestedPath?.startsWith("Volumes/")) {
     const volumesRoot = canonicalAllowedRoots.find((root) => path.basename(root) === "Volumes");
     if (!volumesRoot) throw new Error("Mac Studio에서 연결된 저장소를 찾을 수 없습니다.");
@@ -282,16 +283,14 @@ export async function resolveWorkerRootByLocator(
     }
     return selected;
   }
-  const searchRoots = options.localRoot
-    ? [await resolveRoot(options.localRoot, canonicalAllowedRoots, "로컬 RAW 작업 디스크")]
-    : canonicalAllowedRoots;
   const cache = await readWorkerRootCache(options.cacheFilePath);
   const cacheKey = workerRootCacheKey(locator);
   const cachedPath = cache[cacheKey];
   if (cachedPath) {
     try {
-      const canonical = await resolveRoot(cachedPath, searchRoots, label);
-      if (await candidateMatchesSamples(canonical, samples)) return canonical;
+      const canonical = await resolveRoot(cachedPath, canonicalAllowedRoots, label);
+      if ((!requirePathHint || pathMatchesHint(canonical, requestedPath))
+        && await candidateMatchesSamples(canonical, samples)) return canonical;
     } catch {
       // 재마운트나 폴더 이동으로 무효화된 캐시는 아래 자동 탐색으로 교체한다.
     }
@@ -301,7 +300,7 @@ export async function resolveWorkerRootByLocator(
   const requestedName = normalizedFolderIdentity(locator.folderName);
   const nameCandidates: string[] = [];
   const matchedCandidates: string[] = [];
-  const queue = await workerRootSearchQueue(searchRoots);
+  const queue = await workerRootSearchQueue(canonicalAllowedRoots);
   const visited = new Set<string>();
   while (queue.length && visited.size < WORKER_ROOT_SEARCH_LIMIT) {
     const current = queue.shift()!;
@@ -328,7 +327,7 @@ export async function resolveWorkerRootByLocator(
   const preferred = matchedCandidates.filter((candidate) => pathMatchesHint(candidate, locator.relativePath));
   const resolved = preferred.length === 1
     ? preferred[0]
-    : preferred.length === 0 && matchedCandidates.length === 1
+    : !requirePathHint && preferred.length === 0 && matchedCandidates.length === 1
       ? matchedCandidates[0]
       : null;
   if (!resolved) {
@@ -343,6 +342,36 @@ export async function resolveWorkerRootByLocator(
   cache[cacheKey] = resolved;
   await writeWorkerRootCache(options.cacheFilePath, cache);
   return resolved;
+}
+
+/** Resolve RAW only inside the selected JPG folder or its two nearest ancestors. */
+export async function resolveWorkerRawRootNearJpg(
+  jpgRoot: string,
+  locator: RemoteRawMatchRootLocator,
+  allowedRoots: readonly string[],
+  samples: readonly RootIdentitySample[],
+  relation?: LocalRawMatchRootRelation,
+): Promise<string> {
+  const device = (await stat(jpgRoot)).dev;
+  let ancestor = jpgRoot;
+  for (let depth = 0; depth <= 2; depth += 1) {
+    if (path.basename(ancestor) === "Volumes"
+      || !allowedRoots.some((root) => isInside(root, ancestor))
+      || (await stat(ancestor)).dev !== device) break;
+    if (!relation || relation.parentSteps === depth) {
+      const requested = relation?.subdirectory
+        ? path.join(ancestor, safeRelativePath(relation.subdirectory, "RAW 폴더")) : ancestor;
+      const candidate = await realpath(requested).catch(() => null);
+      if (candidate && isInside(ancestor, candidate)
+        && normalizedFolderIdentity(path.basename(candidate)) === normalizedFolderIdentity(locator.folderName)
+        && (await stat(candidate)).dev === device && await candidateMatchesSamples(candidate, samples)) return candidate;
+      if (relation) break;
+    }
+    const parent = path.dirname(ancestor);
+    if (parent === ancestor) break;
+    ancestor = parent;
+  }
+  throw new Error(`JPG 폴더 '${path.basename(jpgRoot)}'와 상위 두 단계 안에서 RAW 폴더 '${locator.folderName}'의 표본을 찾지 못했습니다.`);
 }
 
 /**
