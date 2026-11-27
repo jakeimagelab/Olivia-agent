@@ -266,15 +266,31 @@ export async function resolveWorkerRootByLocator(
   allowedRoots: readonly string[],
   label: string,
   samples: readonly RootIdentitySample[],
-  options: { cacheFilePath?: string } = {},
+  options: { cacheFilePath?: string; localRoot?: string } = {},
 ): Promise<string> {
   const canonicalAllowedRoots = await Promise.all(allowedRoots.map((root) => realpath(root)));
+  const requestedPath = locator.relativePath?.trim();
+  if (requestedPath?.startsWith("Volumes/")) {
+    const volumesRoot = canonicalAllowedRoots.find((root) => path.basename(root) === "Volumes");
+    if (!volumesRoot) throw new Error("Mac Studio에서 연결된 저장소를 찾을 수 없습니다.");
+    const selectedPath = path.join(volumesRoot, safeRelativePath(requestedPath.slice("Volumes/".length), label));
+    const selected = await resolveRoot(selectedPath, canonicalAllowedRoots, label);
+    if (selected.normalize("NFC") !== selectedPath.normalize("NFC")
+      || normalizedFolderIdentity(path.basename(selected)) !== normalizedFolderIdentity(locator.folderName)
+      || !await candidateMatchesSamples(selected, samples)) {
+      throw new Error(`${label} '${locator.folderName}'이 선택한 저장소의 표본 파일과 일치하지 않습니다.`);
+    }
+    return selected;
+  }
+  const searchRoots = options.localRoot
+    ? [await resolveRoot(options.localRoot, canonicalAllowedRoots, "로컬 RAW 작업 디스크")]
+    : canonicalAllowedRoots;
   const cache = await readWorkerRootCache(options.cacheFilePath);
   const cacheKey = workerRootCacheKey(locator);
   const cachedPath = cache[cacheKey];
   if (cachedPath) {
     try {
-      const canonical = await resolveRoot(cachedPath, canonicalAllowedRoots, label);
+      const canonical = await resolveRoot(cachedPath, searchRoots, label);
       if (await candidateMatchesSamples(canonical, samples)) return canonical;
     } catch {
       // 재마운트나 폴더 이동으로 무효화된 캐시는 아래 자동 탐색으로 교체한다.
@@ -285,7 +301,7 @@ export async function resolveWorkerRootByLocator(
   const requestedName = normalizedFolderIdentity(locator.folderName);
   const nameCandidates: string[] = [];
   const matchedCandidates: string[] = [];
-  const queue = await workerRootSearchQueue(canonicalAllowedRoots);
+  const queue = await workerRootSearchQueue(searchRoots);
   const visited = new Set<string>();
   while (queue.length && visited.size < WORKER_ROOT_SEARCH_LIMIT) {
     const current = queue.shift()!;

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import * as rawMatchFileAttributes from "@/lib/selectMatch/node/rawMatchFileAttributes";
 import {
   copyOrMovePreservingMetadata,
   executeRemoteRawMatchCopy,
@@ -67,6 +68,40 @@ describe("RAW 매칭 실행 가능 조건", () => {
 });
 
 describe("Mac Studio RAW 폴더 자동 탐색", () => {
+  it("볼륨까지 지정한 RAW는 그 경로만 확인하고 다른 볼륨의 동일한 파일로 대체하지 않는다", async () => {
+    const root = path.join(await temporaryRoot(), "Volumes");
+    const archive = path.join(root, "Seagate", "2026", "Project", "R5");
+    const workstation = path.join(root, "Workstation", "Project", "R5");
+    for (const directory of [archive, workstation]) {
+      await mkdir(directory, { recursive: true });
+      await writeFile(path.join(directory, "A.ARW"), "raw");
+    }
+    const locator = { projectKey: "Project", folderName: "R5", relativePath: "Volumes/Seagate/2026/Project/R5", kind: "raw" } as const;
+    const samples = [{ relativePath: "A.ARW", expectedSize: 3, expectedCaptureTimeMs: null }];
+    await expect(resolveWorkerRootByLocator(locator, [root], "RAW 원본 폴더", samples)).resolves.toBe(await realpath(archive));
+    await rm(archive, { recursive: true });
+    await expect(resolveWorkerRootByLocator(locator, [root], "RAW 원본 폴더", samples)).rejects.toThrow(/Seagate/u);
+  });
+
+  it("로컬 디스크가 설정되면 다른 볼륨의 동일한 파일과 캐시를 사용하지 않는다", async () => {
+    const root = path.join(await temporaryRoot(), "Volumes");
+    const localRoot = path.join(root, "Seagate");
+    const localProject = path.join(localRoot, "Project", "R5");
+    const nasProject = path.join(root, "Workstation", "Project", "R5");
+    for (const directory of [localProject, nasProject]) {
+      await mkdir(directory, { recursive: true });
+      await writeFile(path.join(directory, "A.ARW"), "raw");
+    }
+    const cacheFilePath = path.join(root, "cache.json");
+    await writeFile(cacheFilePath, JSON.stringify({ "R5::raw::r5": nasProject }));
+    const locator = { projectKey: "R5", folderName: "R5", relativePath: "R5", kind: "raw" } as const;
+    const samples = [{ relativePath: "A.ARW", expectedSize: 3, expectedCaptureTimeMs: null }];
+    const options = { cacheFilePath, localRoot };
+    await expect(resolveWorkerRootByLocator(locator, [root], "RAW 원본 폴더", samples, options)).resolves.toBe(await realpath(localProject));
+    await rm(localRoot, { recursive: true });
+    await expect(resolveWorkerRootByLocator(locator, [root], "RAW 원본 폴더", samples, options)).rejects.toThrow(/로컬 RAW 작업 디스크.*Seagate/u);
+  });
+
   it("NFD 폴더와 SMB 재마운트 이름을 표본 2개로 찾고 프로젝트별로 캐시한다", async () => {
     const root = await temporaryRoot();
     const mount = path.join(root, "Agentstation-1");
@@ -155,6 +190,33 @@ describe("RAW 전체 실패 판정", () => {
 });
 
 describe.runIf(process.platform === "darwin")("Mac Studio RAW 속성 보존 복사", () => {
+  it.each([false, true])("생성일 차이는 RAW 내용 검증 후에만 허용한다 (손상 %s)", async (corrupt) => {
+    const root = await realpath(await temporaryRoot());
+    const source = path.join(root, "A.ARW");
+    const destinationDirectory = path.join(root, "Selected_RAW");
+    await writeFile(source, "raw-a");
+    await mkdir(destinationDirectory);
+    const snapshot = rawMatchFileAttributes.readFileAttributeSnapshot;
+    const attributes = vi.spyOn(rawMatchFileAttributes, "readFileAttributeSnapshot").mockImplementation(async (filePath) => {
+      const result = await snapshot(filePath);
+      if (filePath === source) return result;
+      if (corrupt && path.basename(filePath).startsWith(".olivia-copy-")) await writeFile(filePath, "raw-b");
+      return { ...result, birthtimeSeconds: result.birthtimeSeconds + 3600 };
+    });
+    try {
+      const copy = copyOrMovePreservingMetadata({ source, destinationDirectory, move: false });
+      if (corrupt) {
+        await expect(copy).rejects.toThrow(/SHA-256 불일치/u);
+        await expect(stat(path.join(destinationDirectory, "A.ARW"))).rejects.toMatchObject({ code: "ENOENT" });
+      } else {
+        await expect(copy).resolves.toMatchObject({ warnings: ["생성일 차이 · 파일 내용 SHA-256 일치"] });
+        await expect(readFile(path.join(destinationDirectory, "A.ARW"), "utf8")).resolves.toBe("raw-a");
+      }
+    } finally {
+      attributes.mockRestore();
+    }
+  });
+
   it("ditto 복사 후 크기·mtime·birthtime·확장속성이 원본과 같고 quarantine가 없다", async () => {
     const root = await temporaryRoot();
     const rawRoot = path.join(root, "RAW");

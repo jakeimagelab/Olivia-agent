@@ -77,6 +77,10 @@ export async function executeRemoteRawMatchCopy(
     ? await Promise.all(options.allowedRoots.map((root) => realpath(root)))
     : await existingAllowedRoots(process.env);
   if (!allowedRoots.length) throw new Error("Mac Studio 사진 저장소가 연결되어 있지 않습니다.");
+  const locatorOptions = {
+    cacheFilePath: options.rootCacheFilePath,
+    localRoot: process.env.OLIVIA_RAW_MATCH_LOCAL_ROOT?.trim(),
+  };
   const rawSamples = payload.items.map((item) => ({
     relativePath: item.rawPath,
     alternativeRelativePaths: item.rawAction === "move"
@@ -97,17 +101,13 @@ export async function executeRemoteRawMatchCopy(
     : []);
   await options.onProgress?.({ current: 0, total: payload.items.length, message: "RAW 원본 폴더를 찾는 중" });
   const rawRoot = payload.rawRoot
-    ? await resolveWorkerRootByLocator(payload.rawRoot, allowedRoots, "RAW 원본 폴더", rawSamples, {
-        cacheFilePath: options.rootCacheFilePath,
-      })
+    ? await resolveWorkerRootByLocator(payload.rawRoot, allowedRoots, "RAW 원본 폴더", rawSamples, locatorOptions)
     : await resolveWorkerRoot(payload.rawRootPath ?? "", allowedRoots, "RAW 원본 폴더", rawSamples);
   if (payload.jpgRoot || payload.jpgRootPath) {
     await options.onProgress?.({ current: 0, total: payload.items.length, message: "JPG 기준 폴더를 찾는 중" });
   }
   const jpgRoot = payload.jpgRoot
-    ? await resolveWorkerRootByLocator(payload.jpgRoot, allowedRoots, "JPG 기준 폴더", jpgSamples, {
-        cacheFilePath: options.rootCacheFilePath,
-      })
+    ? await resolveWorkerRootByLocator(payload.jpgRoot, allowedRoots, "JPG 기준 폴더", jpgSamples, locatorOptions)
     : payload.jpgRootPath
       ? await resolveWorkerRoot(payload.jpgRootPath, allowedRoots, "JPG 기준 폴더", jpgSamples)
     : null;

@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 export const ATTRIBUTE_TIME_TOLERANCE_SECONDS = 2;
+export const CREATION_TIME_MISMATCH = "생성일 불일치";
 
 const FORBIDDEN_ADDED_XATTRS = [
   "com.apple.quarantine",
@@ -56,7 +57,7 @@ export function verifyFileAttributeSnapshot(
   const warnings: string[] = [];
   if (source.size !== destination.size) reasons.push(`크기 불일치 ${destination.size}/${source.size}`);
   if (Math.abs(source.mtimeSeconds - destination.mtimeSeconds) > ATTRIBUTE_TIME_TOLERANCE_SECONDS) reasons.push("수정일 불일치");
-  if (Math.abs(source.birthtimeSeconds - destination.birthtimeSeconds) > ATTRIBUTE_TIME_TOLERANCE_SECONDS) reasons.push("생성일 불일치");
+  if (Math.abs(source.birthtimeSeconds - destination.birthtimeSeconds) > ATTRIBUTE_TIME_TOLERANCE_SECONDS) reasons.push(CREATION_TIME_MISMATCH);
   for (const name of FORBIDDEN_ADDED_XATTRS) {
     if (!(name in source.xattrs) && name in destination.xattrs) {
       reasons.push(name === "com.apple.quarantine"
